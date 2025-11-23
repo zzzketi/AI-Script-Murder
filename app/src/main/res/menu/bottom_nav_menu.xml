@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_script"
+        android:icon="@drawable/ic_script"
+        android:title="剧本" />
+
+    <item
+        android:id="@+id/nav_discover"
+        android:icon="@drawable/ic_history"
+        android:title="发现" />
+
+    <item
+        android:id="@+id/nav_mine"
+        android:icon="@drawable/ic_mine"
+        android:title="我的" />
+</menu>

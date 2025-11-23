@@ -13,3 +13,4 @@
 .externalNativeBuild
 .cxx
 local.properties
+git commit -m "Initial commit of AI Script Murder Android project"

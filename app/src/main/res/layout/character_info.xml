@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212">
+
+    <!-- 顶部标题栏 -->
+    <LinearLayout
+        android:id="@+id/top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:background="#1A1A1A">
+
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="角色"
+            android:textSize="20sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:gravity="center" />
+
+        <ImageView
+            android:id="@+id/iv_refresh"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_refresh" />
+
+    </LinearLayout>
+
+    <!-- 角色信息卡片 -->
+    <LinearLayout
+        android:id="@+id/character_card"
+        android:layout_below="@id/top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#212121"
+        android:layout_margin="16dp">
+
+        <ImageView
+            android:id="@+id/iv_character"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_detective"
+            android:background="#333333"
+            android:scaleType="centerCrop"
+            android:layout_marginEnd="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="侦探"
+                android:textSize="24sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="私家侦探陆沉，是业内闻名的“细节捕手”。十二年探案生涯，他深耕商业窃密、失踪溯源等领域，不依赖复杂设备，却能从墨水色差、鞋印深浅、微表情破绽等微末线索中捕捉异常。秉持“细节不会说谎”的执念，于逻辑裂痕中串联真相，让每一个被忽略的细节都成为指向真相的路标，令隐匿的罪恶无所遁形。"
+                android:textSize="14sp"
+                android:textColor="#BBBBBB"
+                android:maxLines="10"
+                android:ellipsize="end" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- 选择角色按钮 -->
+    <Button
+        android:id="@+id/btn_select"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/character_card"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="#2196F3"
+        android:padding="12dp"
+        android:text="选择该角色并开始"
+        android:textColor="@color/white"
+        android:textSize="16sp" />
+
+
+
+
+
+</RelativeLayout>
