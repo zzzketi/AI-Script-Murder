@@ -45,4 +45,5 @@ dependencies {
     implementation("androidx.room:room-runtime:2.5.2")
     // 编译器 (Java 专用)
     annotationProcessor("androidx.room:room-compiler:2.5.2")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
