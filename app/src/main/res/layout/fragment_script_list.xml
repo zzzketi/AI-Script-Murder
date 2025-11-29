@@ -25,16 +25,16 @@
             android:layout_centerInParent="true" />
 
 
-<!--        &lt;!&ndash; 右上角的暗色/亮色切换开关 &ndash;&gt;-->
-<!--        <com.google.android.material.switchmaterial.SwitchMaterial-->
-<!--            android:id="@+id/switch_theme"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_alignParentEnd="true"-->
-<!--            android:layout_centerVertical="true"-->
-<!--            android:text="夜间模式"-->
-<!--            android:textColor="#666666"-->
-<!--            android:textSize="12sp" />-->
+        <!--        &lt;!&ndash; 右上角的暗色/亮色切换开关 &ndash;&gt;-->
+        <!--        <com.google.android.material.switchmaterial.SwitchMaterial-->
+        <!--            android:id="@+id/switch_theme"-->
+        <!--            android:layout_width="wrap_content"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            android:layout_alignParentEnd="true"-->
+        <!--            android:layout_centerVertical="true"-->
+        <!--            android:text="夜间模式"-->
+        <!--            android:textColor="#666666"-->
+        <!--            android:textSize="12sp" />-->
 
     </RelativeLayout>
 
@@ -60,13 +60,19 @@
                 xmlns:app="http://schemas.android.com/apk/res-auto"
                 app:tint="#999999"/>
 
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- 将TextView替换为EditText -->
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="搜索剧本..."
-                android:textColor="#999999"
+                android:hint="搜索剧本..."
+                android:textColor="#333333"
+                android:textColorHint="#999999"
                 android:textSize="14sp"
-                android:layout_marginStart="8dp"/>
+                android:layout_marginStart="8dp"
+                android:background="@null"
+                android:imeOptions="actionSearch"
+                android:singleLine="true"/>
         </LinearLayout>
     </LinearLayout>
 
