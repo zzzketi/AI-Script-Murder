@@ -30,6 +30,9 @@
             android:name=".ui.main.MainActivity"
             android:exported="true"></activity>
 
+
+
     </application>
+    <uses-permission android:name="android.permission.INTERNET" />
 
 </manifest>

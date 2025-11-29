@@ -16,14 +16,16 @@
             android:layout_width="40dp"
             android:layout_height="match_parent"
             android:padding="10dp"
-            android:src="@drawable/ic_launcher_foreground"/> <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="剧本名称"
-        android:textSize="18sp"
-        android:textStyle="bold"/>
+            android:src="@drawable/ic_back"/>
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="剧本名称"
+            android:textSize="18sp"
+
+            android:textStyle="bold"/>
     </RelativeLayout>
 
     <androidx.recyclerview.widget.RecyclerView

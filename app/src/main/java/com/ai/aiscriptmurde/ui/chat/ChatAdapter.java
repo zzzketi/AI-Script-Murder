@@ -3,135 +3,164 @@ package com.ai.aiscriptmurde.ui.chat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.db.ChatMessage;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    // 定义常量：区分消息类型
-    private static final int TYPE_AI_LEFT = 0;   // 左边：AI发的消息
-    private static final int TYPE_USER_RIGHT = 1; // 右边：用户发的消息
+    // 定义三种类型
+    private static final int TYPE_HEADER = 0;    // 顶部背景便签
+    private static final int TYPE_AI = 1;        // 左边 AI
+    private static final int TYPE_USER = 2;      // 右边 用户
+    private static final int TYPE_SYSTEM = 3;   // 系统消息（暂未使用）
 
-    // 数据源：存放所有的聊天记录
     private List<ChatMessage> messages = new ArrayList<>();
+    private String backgroundStory; // 专门存背景故事
 
-    // --- 1. 数据操作方法 ---
+    // --- 1. 设置背景故事的方法 ---
+    public void setBackgroundStory(String story) {
+        this.backgroundStory = story;
+        notifyDataSetChanged();
+    }
 
-    /**
-     * 重新设置整个列表数据 (通常用于刚进页面加载历史记录)
-     */
     public void setMessages(List<ChatMessage> list) {
         this.messages = list;
-        notifyDataSetChanged(); // 通知刷新
+        notifyDataSetChanged();
     }
 
-    /**
-     * 添加单条消息 (通常用于发送或接收新消息时)
-     * 这样比 notifyDataSetChanged 性能更好，且有动画效果
-     */
     public void addMessage(ChatMessage msg) {
         this.messages.add(msg);
-        notifyItemInserted(messages.size() - 1); // 只刷新最后一行
+        // 注意：因为有个头布局，所以插入位置是 size (不用 -1)
+        notifyItemInserted(getItemCount() - 1);
     }
 
-    // --- 2. 核心逻辑：决定是用左边布局还是右边布局 ---
+    // --- 2. 核心：数量要 +1 (为了放头布局) ---
+    @Override
+    public int getItemCount() {
+        // 如果有背景故事，总数 = 消息数 + 1
+        return backgroundStory != null ? messages.size() + 1 : messages.size();
+    }
 
+    // --- 3. 核心：判断类型 ---
     @Override
     public int getItemViewType(int position) {
-        ChatMessage msg = messages.get(position);
-        // 如果 isUser 为 true，返回右边类型，否则返回左边
-        if (msg.isUser) {
-            return TYPE_USER_RIGHT;
-        } else {
-            return TYPE_AI_LEFT;
+        // 如果有背景故事，且当前是第 0 个，那就是 Header
+        if (backgroundStory != null && position == 0) {
+            return TYPE_HEADER;
         }
+
+        // 注意：因为第0个被占了，所以取消息要 index - 1
+        int realPosition = backgroundStory != null ? position - 1 : position;
+        ChatMessage msg = messages.get(realPosition);
+
+        // ✅ 如果发送者是“系统”，就用便签样式
+        if (msg.senderName != null && msg.senderName.contains("系统") || msg.senderName.contains("主持人") ) {
+            return TYPE_SYSTEM;
+        }
+
+        return msg.isUser ? TYPE_USER : TYPE_AI;
     }
 
-    // --- 3. 核心逻辑：创建 (ViewHolder) ---
-
+    // --- 4. 创建 ViewHolder ---
+    //  修改 onCreateViewHolder，复用便签布局
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
 
-        if (viewType == TYPE_USER_RIGHT) {
-            // 加载右边的 XML
-            View view = inflater.inflate(R.layout.item_chat_right, parent, false);
-            return new UserViewHolder(view);
+        if (viewType == TYPE_HEADER) {
+            return new HeaderViewHolder(inflater.inflate(R.layout.item_chat_intro, parent, false));
+        } else if (viewType == TYPE_SYSTEM) {
+            // ✅ 复用 item_chat_intro.xml，但我们需要一个新的ViewHolder来绑定不同的数据
+            // 或者直接复用 HeaderViewHolder 也可以，只要 ID 一样
+            return new SystemViewHolder(inflater.inflate(R.layout.item_chat_intro, parent, false));
+        } else if (viewType == TYPE_USER) {
+            return new UserViewHolder(inflater.inflate(R.layout.item_chat_right, parent, false));
         } else {
-            // 加载左边的 XML
-            View view = inflater.inflate(R.layout.item_chat_left, parent, false);
-            return new AIViewHolder(view);
+            return new AIViewHolder(inflater.inflate(R.layout.item_chat_left, parent, false));
         }
     }
 
-    // --- 4. 核心逻辑： (绑定数据) ---
-
+    // 4. 修改 onBindViewHolder
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        ChatMessage msg = messages.get(position);
 
-        if (holder instanceof UserViewHolder) {
-            // 处理右边用户逻辑
-            UserViewHolder userHolder = (UserViewHolder) holder;
-            userHolder.tvContent.setText(msg.content);
-            // 如果你想给用户设个固定头像，可以在这里设
-            // userHolder.ivAvatar.setImageResource(R.drawable.ic_user_avatar);
 
-        } else if (holder instanceof AIViewHolder) {
-            // 处理左边 AI 逻辑
-            AIViewHolder aiHolder = (AIViewHolder) holder;
-            aiHolder.tvContent.setText(msg.content);
 
-            // 设置 NPC 名字 (比如 "管家")
-            aiHolder.tvName.setText(msg.senderName);
+        if (holder instanceof HeaderViewHolder) {
+            ((HeaderViewHolder) holder).tvContent.setText(backgroundStory);
+            // ✅ 强制设回 "剧本背景" (防止被系统消息复用时改成了别的)
+            if (((HeaderViewHolder) holder).tvTitle != null) {
+                ((HeaderViewHolder) holder).tvTitle.setText("📜 剧本背景");
+            }
+        } else {
+            int realPosition = backgroundStory != null ? position - 1 : position;
+            ChatMessage msg = messages.get(realPosition);
 
-            // 以后可以在这里根据 roleId 设置不同的头像
-            // if ("npc_01".equals(msg.roleId)) { ... }
+            if (holder instanceof UserViewHolder) {
+                ((UserViewHolder) holder).tvContent.setText(msg.content);
+            } else if (holder instanceof AIViewHolder) {
+                ((AIViewHolder) holder).tvContent.setText(msg.content);
+                ((AIViewHolder) holder).tvName.setText(msg.senderName);
+            }
+            // ✅ 处理系统便签
+            else if (holder instanceof SystemViewHolder) {
+                ((SystemViewHolder) holder).tvContent.setText(msg.content);
+                // ✅ 设置为 "系统提示"
+                if (((SystemViewHolder) holder).tvTitle != null) {
+                    ((SystemViewHolder) holder).tvTitle.setText("📜 系统提示");
+                }
+            }
         }
     }
 
-    @Override
-    public int getItemCount() {
-        return messages == null ? 0 : messages.size();
+    // 5. 新增一个 ViewHolder (其实结构和 HeaderViewHolder 一模一样)
+    static class SystemViewHolder extends RecyclerView.ViewHolder {
+        TextView tvContent;
+        TextView tvTitle; // 如果你的 item_chat_intro 里有标题的 ID，可以拿来改
+        public SystemViewHolder(@NonNull View itemView) {
+            super(itemView);
+            tvContent = itemView.findViewById(R.id.tv_intro_content);
+            // 假设你的 item_chat_intro.xml 里那个 "剧本背景" 的 TextView 没有 ID
+            // 你可以去 xml 里给它加个 ID 叫 tv_intro_title，然后在这里 findViewById
+            // 暂时先只绑定 content
+            // 🛠️ 调试代码：如果找不到，在 Logcat 打印一下
+            tvTitle = itemView.findViewById(R.id.tv_intro_title);
+        }
     }
 
-    // --- 5. 内部类：定义 ViewHolder ---
+    // --- ViewHolder 类定义 ---
+    static class HeaderViewHolder extends RecyclerView.ViewHolder {
+        TextView tvContent;
+        TextView tvTitle; // ✅ 也要加这个
 
-    // 右边 (用户) 的 ViewHolder
+        public HeaderViewHolder(@NonNull View itemView) {
+            super(itemView);
+            tvContent = itemView.findViewById(R.id.tv_intro_content);
+            // ✅ 也要初始化
+            tvTitle = itemView.findViewById(R.id.tv_intro_title);
+        }
+    }
+
     static class UserViewHolder extends RecyclerView.ViewHolder {
         TextView tvContent;
-        ImageView ivAvatar;
-
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
-            // 这里 R.id.xxx 必须和你 item_chat_right.xml 里的 ID 一致
             tvContent = itemView.findViewById(R.id.tv_content);
-            // ivAvatar = itemView.findViewById(R.id.iv_avatar); // 如果 XML 里有头像就加上
         }
     }
 
-    // 左边 (AI) 的 ViewHolder
     static class AIViewHolder extends RecyclerView.ViewHolder {
-        TextView tvContent;
-        TextView tvName;
-        ImageView ivAvatar;
-
+        TextView tvContent, tvName;
         public AIViewHolder(@NonNull View itemView) {
             super(itemView);
-            // 这里 R.id.xxx 必须和你 item_chat_left.xml 里的 ID 一致
             tvContent = itemView.findViewById(R.id.tv_content);
             tvName = itemView.findViewById(R.id.tv_name);
-            ivAvatar = itemView.findViewById(R.id.iv_avatar);
         }
     }
 }

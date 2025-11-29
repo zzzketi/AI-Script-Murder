@@ -27,10 +27,12 @@ public class DBHelper {
             List<ChatMessage> history = AppDatabase.getInstance(context)
                     .chatDao().getHistoryByScriptId(scriptId);
 
-            // 2. 切回主线程，把结果扔给 callback
+            // 2. 切回主线程
             mainHandler.post(() -> {
                 if (callback != null) {
-                    callback.onResult(history);
+                    // ❌ 原来是: callback.onResult(history);
+                    // ✅ 现在改成:
+                    callback.onSuccess(history);
                 }
             });
         });
