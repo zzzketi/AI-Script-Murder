@@ -13,20 +13,21 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.db.AppDatabase;
 import com.ai.aiscriptmurde.db.ChatMessage;
+import com.ai.aiscriptmurde.model.CharacterItem;
 import com.ai.aiscriptmurde.utils.AIUtils;
 import com.ai.aiscriptmurde.utils.DBHelper;
 import com.ai.aiscriptmurde.utils.DataCallback;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChatActivity extends AppCompatActivity {
 
     private RecyclerView rvChat;
     private ChatAdapter adapter;
     private EditText etInput;
-    private String scriptId;
-    private String systemPrompt;
 
 
     // UI 控件
@@ -34,19 +35,40 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView ivBack;
     private Button btnSend;
 
+
+    // 数据变量
+    private String scriptId;
+    private String systemPrompt;
+    private String userRoleName = "玩家"; // 默认名字
     // 数据变量
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
-        // 1. 获取传递过来的数据
         scriptId = getIntent().getStringExtra("SCRIPT_ID");
-        if (scriptId == null) scriptId = "test_script_001"; // 默认测试ID
+        if (scriptId == null) scriptId = "default_id";
 
-        systemPrompt = getIntent().getStringExtra("SYSTEM_PROMPT");
-        systemPrompt = "你现在是剧本杀主持人。当前剧本改编自《斑点带子案》。\n\n【玩家身份】：大侦探（正在勘查案发现场）。\n\n【你需要扮演的NPC】：\n1. 海伦·斯托纳（死者的妹妹，委托人）：性格柔弱惊恐，非常害怕继父。她因为房间装修被迫搬进了姐姐死去的房间，昨晚听到了姐姐死前听到的口哨声。\n2. 罗伊洛特医生（继父，凶手）：凶狠暴躁，身材高大，去过印度，养着狒狒和猎豹。非常反感侦探的调查。\n\n【核心真相（仅AI可见）】：\n- 凶手是继父罗伊洛特医生。\n- 动机：如果女儿出嫁，他掌管的遗产就会减少。两年前姐姐朱莉亚要结婚，所以被杀；现在海伦也要结婚，所以他故技重施。\n- 凶器：一条来自印度的沼泽蝰蛇（斑点带子）。\n- 手法：他训练蛇通过通气孔爬进隔壁房间，顺着床边的铃绳爬下去咬人。听到口哨声后，蛇会爬回来喝牛奶。\n\n【关键线索（玩家问到时必须透露）】：\n1. 房间结构：床被钉死在地板上无法移动；通气孔不通向室外，而是通向继父的房间。\n2. 铃绳：看起来是新的，但没有连接任何铃铛，只挂在通气孔挂钩上。\n3. 继父房间：有一个保险柜（里面关着蛇），一盘牛奶，一把类似狗鞭的鞭子。\n4. 死亡遗言：姐姐死前喊的是“斑点带子”，海伦以为是吉普赛人的头巾，其实是蛇身上的花纹。\n\n【回复规则】：\n- 请以群聊形式回复，格式为“[角色名]: 内容”。\n- 继父面对质问要表现出愤怒和威胁。\n- 海伦对继父非常恐惧，只敢在继父不在时多说话。";
+        // 接收基础 Prompt
+        String originalPrompt = getIntent().getStringExtra("SYSTEM_PROMPT");
+        if (originalPrompt == null) originalPrompt = "你是剧本杀主持人。";
+
         String title = getIntent().getStringExtra("SCRIPT_TITLE");
+
+        // 🔥 接收用户选择的角色对象
+        // 注意：CharacterItem 必须实现 Serializable 接口
+        CharacterItem userRole = (CharacterItem) getIntent().getSerializableExtra("USER_ROLE");
+
+        // --- 2. 逻辑处理：告诉 AI 玩家是谁 ---
+
+        if (userRole != null) {
+            this.userRoleName = userRole.getName();
+            // 🔥【关键技巧】把玩家身份拼接到 Prompt 后面
+            // 这样 AI 就知道："哦，原来跟我对话的人是 '大侦探' 啊"
+            this.systemPrompt = originalPrompt + "\n\n【当前用户扮演的角色】：" + userRoleName;
+        } else {
+            this.systemPrompt = originalPrompt;
+        }
 
         // 2. 初始化控件
         initViews(title);
@@ -60,7 +82,6 @@ public class ChatActivity extends AppCompatActivity {
         ivBack = findViewById(R.id.iv_back);
 
         tvTitle.setText(title == null ? "剧本杀" : title);
-
 
         rvChat = findViewById(R.id.rv_chat);
         etInput = findViewById(R.id.et_input);
@@ -193,60 +214,41 @@ public class ChatActivity extends AppCompatActivity {
      * 2. 管家: "先生请进"
      */
     private List<ChatMessage> parseAiResponse(String aiReply) {
-        List<ChatMessage> resultMessages = new ArrayList<>();
+        List<ChatMessage> messages = new ArrayList<>();
 
-        // 按行切割，逐行分析
-        String[] lines = aiReply.split("\n");
+        // 支持这种格式：
+        // [Alice]: xxx
+        // [Bob]：xxx
+        // 正则含义：捕获 [角色名] 后面跟着 冒号（中英文），并且获取后面的台词
+        Pattern pattern = Pattern.compile("\\[(.+?)\\][：:]\\s*");
+        Matcher matcher = pattern.matcher(aiReply);
 
-        // 默认的第一说话人（如果第一句没写名字，就假设是旁白或上一轮的角色）
-        // 你可以根据需要改成 "DM" 或者 "系统"
-        String currentSender = "系统";
-        StringBuilder currentContent = new StringBuilder();
+        int lastEnd = 0;
+        String lastSpeaker = "系统";
 
-        for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty()) continue; // 跳过空行
-
-            // 🔍 判断这一行是不是新角色发言
-            // 特征：以 '[' 开头，并且包含 ']:' 或 ']：'
-            boolean isNewRole = line.startsWith("[") && (line.contains("]:") || line.contains("]："));
-
-            if (isNewRole) {
-                // 1. 如果之前缓冲区里有内容，先打包上一条消息
-                if (currentContent.length() > 0) {
-                    resultMessages.add(new ChatMessage(scriptId, currentSender, null, currentContent.toString(), false));
-                    currentContent.setLength(0); // 清空缓冲区
+        while (matcher.find()) {
+            // ➤ 如果之前有 speaker，保存上一段内容
+            if (lastEnd != 0) {
+                String content = aiReply.substring(lastEnd, matcher.start()).trim();
+                if (!content.isEmpty()) {
+                    messages.add(new ChatMessage(scriptId, lastSpeaker, null, content, false));
                 }
+            }
 
-                // 2. 提取新名字
-                try {
-                    // 兼容英文冒号和中文冒号
-                    int splitIndex = line.contains("]:") ? line.indexOf("]:") : line.indexOf("]：");
-                    currentSender = line.substring(0, splitIndex).replace("[", "").replace("]", "");
+            // ➤ 更新当前说话人
+            lastSpeaker = matcher.group(1).trim();
+            lastEnd = matcher.end();
+        }
 
-                    // 3. 把这一行剩下的内容作为新内容的开始
-                    // +2 是跳过 "]:" 两个字符
-                    String content = line.substring(splitIndex + 2).trim();
-                    currentContent.append(content);
-                } catch (Exception e) {
-                    // 解析失败就当做普通文本追加
-                    currentContent.append(line);
-                }
-            } else {
-                // 不是新角色，说明是上一句话的换行（或者是第一句话）
-                if (currentContent.length() > 0) {
-                    currentContent.append("\n"); // 补回换行符
-                }
-                currentContent.append(line);
+        // ➤ 最后一段内容（如果存在）
+        if (lastEnd < aiReply.length()) {
+            String content = aiReply.substring(lastEnd).trim();
+            if (!content.isEmpty()) {
+                messages.add(new ChatMessage(scriptId, lastSpeaker, null, content, false));
             }
         }
 
-        // 4. 循环结束，别忘了把最后一段也没存进去
-        if (currentContent.length() > 0) {
-            resultMessages.add(new ChatMessage(scriptId, currentSender, null, currentContent.toString(), false));
-        }
-
-        return resultMessages;
+        return messages;
     }
 
     // 辅助方法：添加一条系统提示消息
