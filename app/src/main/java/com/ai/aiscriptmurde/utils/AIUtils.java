@@ -4,10 +4,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.ai.aiscriptmurde.db.ChatMessage;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
@@ -38,32 +41,68 @@ public class AIUtils {
     /**
      * 发送消息给 AI
      * @param systemPrompt 剧本的核心设定 (JSON里的 system_prompt)
-     * @param userMessage 用户刚才说的话
+     * @param history 用户说的话
      * @param callback 回调接口，返回 AI 的回复内容
      */
-    public static void chatWithAI(String systemPrompt, String userMessage, DataCallback<String> callback) {
+    public static void chatWithAI(String systemPrompt, List<ChatMessage> history, DataCallback<String> callback) {
 
         // A. 拼装 JSON 请求体 (这是发给 DeepSeek 的格式)
         // 格式参考：{"model":"deepseek-chat", "messages": [...]}
         JSONObject jsonBody = new JSONObject();
         try {
-            jsonBody.put("model", "deepseek-ai/DeepSeek-V3");
+
+
             JSONArray messages = new JSONArray();
-            // 第一条：系统设定 (你是谁，剧本是什么)
+            jsonBody.put("model", "deepseek-ai/DeepSeek-V3");
+
+            // 1. 系统设定 (System)
             JSONObject sysMsg = new JSONObject();
             sysMsg.put("role", "system");
             sysMsg.put("content", systemPrompt);
             messages.put(sysMsg);
 
-            // 第二条：用户的话
-            JSONObject userMsg = new JSONObject();
-            userMsg.put("role", "user");
-            userMsg.put("content", userMessage);
-            messages.put(userMsg);
 
+            // 2. 遍历历史记录 (合并连续的角色消息)
+            if (history != null && !history.isEmpty()) {
+                int maxHistory = 20;
+                int start = Math.max(0, history.size() - maxHistory);
+
+                for (int i = start; i < history.size(); i++) {
+                    ChatMessage msg = history.get(i);
+                    if (msg.content == null) continue;
+
+                    // 当前消息的角色
+                    String currentRole = msg.isUser ? "user" : "assistant";
+
+                    // 当前消息的内容
+                    String currentContent = msg.content;
+                    if (!msg.isUser && msg.senderName != null && !currentContent.startsWith("[")) {
+                        currentContent = "[" + msg.senderName + "]: " + currentContent;
+                    }
+
+                    // 🔥【核心修复逻辑】检查上一条消息
+                    if (messages.length() > 0) {
+                        JSONObject lastJsonMsg = messages.getJSONObject(messages.length() - 1);
+                        String lastRole = lastJsonMsg.optString("role");
+
+                        // 如果当前角色 == 上一条的角色 (比如都是 assistant)
+                        if (currentRole.equals(lastRole)) {
+                            // 🤝 合并！把内容拼接到上一条后面，用换行符隔开
+                            String oldContent = lastJsonMsg.getString("content");
+                            lastJsonMsg.put("content", oldContent + "\n\n" + currentContent);
+                            // 跳过本次循环，不添加新条目
+                            continue;
+                        }
+                    }
+
+                    // 如果角色不一样，才添加新条目
+                    JSONObject jsonMsg = new JSONObject();
+                    jsonMsg.put("role", currentRole);
+                    jsonMsg.put("content", currentContent);
+                    messages.put(jsonMsg);
+                }
+            }
             jsonBody.put("messages", messages);
-            jsonBody.put("stream", false); // 暂时不用流式，简单点
-
         } catch (Exception e) {
             e.printStackTrace();
         }

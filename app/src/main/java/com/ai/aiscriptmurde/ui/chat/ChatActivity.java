@@ -156,7 +156,7 @@ public class ChatActivity extends AppCompatActivity {
         DBHelper.insertMessage(this, userMsg);
 
         // 5. 🔥 呼叫 AI
-        callAI(content);
+        callAI(adapter.getMessages());
 
 
     }
@@ -167,10 +167,10 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 
-    private void callAI(String userContent) {
+    private void callAI(List<ChatMessage> history) {
 
         // 调用工具类
-        AIUtils.chatWithAI(systemPrompt, userContent, new DataCallback<String>() {
+        AIUtils.chatWithAI(systemPrompt, history, new DataCallback<String>() {
             @Override
             public void onSuccess(String aiReply) {
                 // --- 成功了，逻辑和之前一样 ---

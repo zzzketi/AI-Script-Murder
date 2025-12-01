@@ -86,6 +86,11 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
+    // 在 ChatAdapter.java 中添加
+    public List<ChatMessage> getMessages() {
+        return messages;
+    }
+
     // 4. 修改 onBindViewHolder
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
