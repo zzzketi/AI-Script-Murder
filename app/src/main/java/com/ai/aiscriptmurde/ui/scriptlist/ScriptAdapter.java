@@ -69,12 +69,14 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
 
         // 4. 图片加载
 
-        int resId = ScriptUtils.getResId(context,script.getImage());
-        if (resId != 0) {
-            holder.ivCover.setImageResource(resId);
-        } else {
-            holder.ivCover.setImageResource(R.drawable.ic_launcher_background);
-        }
+        String imageUrl = "http://10.0.2.2:8000/static/images/" + script.getImage() + ".png";
+
+        // 使用 Glide 加载
+        com.bumptech.glide.Glide.with(context)
+                .load(imageUrl)
+                .placeholder(R.drawable.ic_launcher_background) // 加载占位图
+                .error(R.drawable.ic_launcher_background)       // 错误占位图
+                .into(holder.ivCover);
 
         //设置点击事件
         holder.itemView.setOnClickListener(new View.OnClickListener() {

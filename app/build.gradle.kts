@@ -48,5 +48,14 @@ dependencies {
     // 网络请求库
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    // Retrofit 网络请求库 (基于 OkHttp 封装，通过接口定义 API)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // Retrofit Gson 转换器 (配合已有的 Gson，自动将 JSON 转为 Java 对象)
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Glide 图片加载库 (显示图片)
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
 }

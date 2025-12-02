@@ -3,7 +3,6 @@ package com.ai.aiscriptmurde.ui.scriptlist;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
@@ -17,21 +16,19 @@ import androidx.appcompat.app.AppCompatActivity; // 注意继承的是 AppCompat
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.model.CharacterItem;
 import com.ai.aiscriptmurde.model.ScriptDetailModel;
-import com.ai.aiscriptmurde.utils.ScriptUtils;
-import com.google.gson.Gson;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import com.ai.aiscriptmurde.network.RetrofitClient;
+import com.bumptech.glide.Glide; // 引入 Glide
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import java.util.List;
 
-// 1. 修改继承：extends Fragment -> extends AppCompatActivity
+
 public class ScriptDetailActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-
         setContentView(R.layout.fragment_script_detail);
 
 
@@ -43,24 +40,28 @@ public class ScriptDetailActivity extends AppCompatActivity {
         String scriptId = getIntent().getStringExtra("key_script_id");
         
         if (scriptId != null) {
-            loadDetailData(scriptId);
+            loadDetailDataNetwork(scriptId);
         } else {
             Toast.makeText(this, "未获取到剧本ID", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void loadDetailData(String scriptId) {
-        String fileName = "mock_data/details/script_" + scriptId + ".json";
-        String jsonStr = ScriptUtils.readAssetFile(this, fileName);
+    private void loadDetailDataNetwork(String scriptId) {
+        RetrofitClient.getApiService().getScriptDetail(scriptId).enqueue(new Callback<ScriptDetailModel>() {
+            @Override
+            public void onResponse(Call<ScriptDetailModel> call, Response<ScriptDetailModel> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    updateUI(response.body());
+                } else {
+                    Toast.makeText(ScriptDetailActivity.this, "加载失败", Toast.LENGTH_SHORT).show();
+                }
+            }
 
-        if (jsonStr != null) {
-            Gson gson = new Gson();
-            ScriptDetailModel detail = gson.fromJson(jsonStr, ScriptDetailModel.class);
-            updateUI(detail);
-        } else {
-            // 6. Context 修改：getContext() -> this
-            Toast.makeText(this, "加载剧本数据失败", Toast.LENGTH_SHORT).show();
-        }
+            @Override
+            public void onFailure(Call<ScriptDetailModel> call, Throwable t) {
+                Toast.makeText(ScriptDetailActivity.this, "网络错误", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @SuppressLint("SetTextI18n")
@@ -75,12 +76,8 @@ public class ScriptDetailActivity extends AppCompatActivity {
         tvTitle.setText(detail.getTitle());
         tvSubtitle.setText(detail.getDesc());
 
-        int coverResId = ScriptUtils.getResId(this,detail.getImage());
-        if (coverResId != 0) {
-            ivCover.setImageResource(coverResId);
-        }else {
-            ivCover.setImageResource(R.drawable.ic_launcher_background);
-        }
+        String coverUrl = "http://10.0.2.2:8000/static/images/" + detail.getImage() + ".png";
+        Glide.with(this).load(coverUrl).placeholder(R.drawable.ic_launcher_background).into(ivCover);
 
         if (detail.getBackground() != null) {
             TextView tvTime = findViewById(R.id.tv_detail_time);
@@ -109,6 +106,7 @@ public class ScriptDetailActivity extends AppCompatActivity {
         addCharacterViews(charContainer, detail.getCharacters(),detail);//新增detail
     }
 
+
     private void addCharacterViews(LinearLayout container, List<CharacterItem> list,ScriptDetailModel detail) {
         container.removeAllViews();
 
@@ -127,9 +125,13 @@ public class ScriptDetailActivity extends AppCompatActivity {
             tvDesc.setText(item.getDesc());
 
 
-            int avatarId = ScriptUtils.getResId(this,item.getAvatar());
-            if (avatarId != 0) {
-                ivAvatar.setImageResource(avatarId);
+            if (item.getAvatar() != null) {
+                String avatarUrl = "http://10.0.2.2:8000/static/images/" + item.getAvatar() + ".png";
+                Glide.with(this)
+                        .load(avatarUrl)
+                        .placeholder(R.drawable.ic_launcher_background)
+                        .circleCrop()
+                        .into(ivAvatar);
             }
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override

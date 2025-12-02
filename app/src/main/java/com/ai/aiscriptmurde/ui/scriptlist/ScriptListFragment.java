@@ -28,6 +28,9 @@ import java.util.List;
 
 public class ScriptListFragment extends Fragment {
 
+    private ScriptAdapter adapter;
+    private RecyclerView rv;
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_script_list, container, false);
@@ -38,32 +41,62 @@ public class ScriptListFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         // 1. 找到 RecyclerView
-        RecyclerView rv = view.findViewById(R.id.rv_script_list);
+        rv = view.findViewById(R.id.rv_script_list);
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // 2. 读取数据
-        List<ScriptModel> dataList = getScriptsFromJson();
-
-        // 3. 设置适配器
-        ScriptAdapter adapter = new ScriptAdapter(dataList);
-        adapter.setOnItemClickListener(new ScriptAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(ScriptModel script) {
-                Intent intent = new Intent(requireContext(), ScriptDetailActivity.class);
-                intent.putExtra("key_script_id", script.getId());
-                startActivity(intent);
-            }
-        });
-        rv.setAdapter(adapter);
+        // 2. 读取数据并设置适配器
+        fetchScriptsFromNetwork();
     }
 
     // 读取JSON 文件
-    private List<ScriptModel> getScriptsFromJson() {
-        String jsonStr = ScriptUtils.readAssetFile(requireContext(),"mock_data/script_list.json");
+    private void fetchScriptsFromNetwork() {
+        // 使用 Retrofit 发起请求
+        com.ai.aiscriptmurde.network.RetrofitClient.getApiService().getScripts(null)
+                .enqueue(new retrofit2.Callback<com.ai.aiscriptmurde.model.ScriptListResponse>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<com.ai.aiscriptmurde.model.ScriptListResponse> call, retrofit2.Response<com.ai.aiscriptmurde.model.ScriptListResponse> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            List<ScriptModel> dataList = response.body().getScripts();
 
-        // 使用 Gson 解析 JSON 数组
-        Gson gson = new Gson();
-        Type listType = new TypeToken<List<ScriptModel>>(){}.getType();
-        return gson.fromJson(jsonStr, listType);
+                            // 设置适配器
+                            adapter = new ScriptAdapter(dataList);
+                            adapter.setOnItemClickListener(script -> {
+                                Intent intent = new Intent(requireContext(), ScriptDetailActivity.class);
+                                intent.putExtra("key_script_id", script.getId());
+                                startActivity(intent);
+                            });
+                            rv.setAdapter(adapter);
+                        } else {
+                            // === 处理服务器返回错误
+                            int errorCode = response.code();
+                            String errorMsg = response.message();
+
+                            // 打印日志到 Logcat
+                            android.util.Log.e("ScriptListFragment", "请求失败: code=" + errorCode + ", msg=" + errorMsg);
+
+                            // 提示用户
+                            if (getContext() != null) {
+                                android.widget.Toast.makeText(getContext(), "获取数据失败 (Code: " + errorCode + ")", android.widget.Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(retrofit2.Call<com.ai.aiscriptmurde.model.ScriptListResponse> call, Throwable t) {
+                        //处理网络层面的失败
+
+                        String errorInfo = t.getMessage();
+                        android.util.Log.e("ScriptListFragment", "网络异常: " + errorInfo);
+
+                        if (getContext() != null) {
+                            // 提示信息
+                            String toastMsg = "网络请求失败，请检查网络";
+                            if (errorInfo != null && errorInfo.contains("Failed to connect")) {
+                                toastMsg = "无法连接服务器，请检查 Python 后端是否启动";
+                            }
+                            android.widget.Toast.makeText(getContext(), toastMsg, android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
     }
 }

@@ -26,28 +26,28 @@
     {
       "id": "char_player",
       "name": "大侦探 (你)",
-      "avatar": "char_player_default",
+      "avatar": "char_001_detective",
       "age": "??岁",
       "desc": "受海伦小姐之托连夜赶往庄园。拥有敏锐的洞察力和严密的逻辑，此次的任务是查明两年前密室惨案的真相，并保护委托人今晚的安全。"
     },
     {
       "id": "char_helen",
       "name": "海伦·斯托纳",
-      "avatar": "char_helen_avatar",
+      "avatar": "char_001_helen",
       "age": "32岁",
       "desc": "死者的双胞胎妹妹，现在的委托人。神情憔悴，头发花白，眼神中总是充满了惊恐。她被迫搬进了姐姐去世的房间，预感死亡正在逼近。"
     },
     {
       "id": "char_roylott",
       "name": "罗伊洛特医生",
-      "avatar": "char_roylott_avatar",
+      "avatar": "char_001_doctor",
       "age": "58岁",
       "desc": "庄园的主人，也就是海伦的继父。身材高大魁梧，面容凶恶，曾长期居住在印度。性情极其暴躁，力大无穷，喜欢饲养危险的异域动物。"
     },
     {
       "id": "char_julia",
       "name": "朱莉亚 (已故)",
-      "avatar": "char_julia_avatar",
+      "avatar": "char_001_julia",
       "age": "30岁(享年)",
       "desc": "海伦的姐姐，两年前的一个风雨夜在密室中离奇惨死。死前即将出嫁，留下的最后遗言是关于“带斑点的带子”。"
     }
