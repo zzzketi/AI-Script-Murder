@@ -1,1 +1,55 @@
+# ========================
+# Android 相关 (Android Studio)
+# ========================
+
+# 构建产物 (垃圾文件)
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
 /build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.ap_
+
+# 本地属性配置 (包含 SDK 路径，绝对不能提交)
+local.properties
+
+
+# ========================
+# Python 后端相关
+# ========================
+
+# 编译缓存 (必须忽略)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境 (Virtual Environment)
+# 如果你的环境文件夹叫 myenv 或 venv，都在这里过滤掉
+venv/
+.venv/
+env/
+myenv_from_you/
+
+# 环境变量与敏感信息 (防止 API Key 泄露)
+.env
+.env.local
+
+# IDE 配置 (PyCharm / VSCode)
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
