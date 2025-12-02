@@ -1,6 +1,6 @@
 package com.ai.aiscriptmurde.model;
-
 import java.util.List;
+
 
 /**
  * created by wch on 2025/11/25.

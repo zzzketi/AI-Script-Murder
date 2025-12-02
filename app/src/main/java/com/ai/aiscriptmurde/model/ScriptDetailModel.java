@@ -15,6 +15,7 @@ public class ScriptDetailModel implements Serializable {
     // 详情页扩展字段
     private BackgroundInfo background; // 背景信息
     private List<CharacterItem> characters; // 角色列表
+    private String system_prompt;
 
     // === Getters ===
     public String getId() { return id; }
@@ -26,6 +27,12 @@ public class ScriptDetailModel implements Serializable {
     public List<String> getTags() { return tags; }
     public BackgroundInfo getBackground() { return background; }
     public List<CharacterItem> getCharacters() { return characters; }
+
+    // 🔥🔥🔥 [新增] 对应 JSON 里的 "system_prompt"
+
+    public String getSystemPrompt() {
+        return system_prompt;
+    }
 
     // === 内部类定义 ===
 

@@ -106,10 +106,10 @@ public class ScriptDetailActivity extends AppCompatActivity {
         }
 
         LinearLayout charContainer = findViewById(R.id.layout_characters_container);
-        addCharacterViews(charContainer, detail.getCharacters());
+        addCharacterViews(charContainer, detail.getCharacters(),detail);//新增detail
     }
 
-    private void addCharacterViews(LinearLayout container, List<CharacterItem> list) {
+    private void addCharacterViews(LinearLayout container, List<CharacterItem> list,ScriptDetailModel detail) {
         container.removeAllViews();
 
         if (list == null || list.isEmpty()) return;
@@ -137,8 +137,26 @@ public class ScriptDetailActivity extends AppCompatActivity {
                     // 1. 创建意图：从当前页面 -> ChatActivity
                     Intent intent = new Intent(ScriptDetailActivity.this, CharacterInfoActivity.class);
 
-                    // 2. 传递整个对象 (Key 建议定义成常量)
+
+                    // 1. 传递角色对象
                     intent.putExtra("key_selected_character", item);
+
+                    // 🔥🔥🔥 [新增] 传递核心数据给 CharacterInfo -> ChatActivity
+                    intent.putExtra("SCRIPT_ID", detail.getId());
+                    intent.putExtra("SCRIPT_TITLE", detail.getTitle());
+
+                    // 🔥🔥🔥 [新增] 传递 AI 设定 (System Prompt)
+                    if (detail.getSystemPrompt() != null) {
+                        intent.putExtra("SYSTEM_PROMPT", detail.getSystemPrompt());
+                    } else {
+                        intent.putExtra("SYSTEM_PROMPT", "你是剧本杀主持人。"); // 默认值防崩
+                    }
+
+                    // 🔥🔥🔥 [新增] 传递背景故事 (用于聊天页顶部便签)
+                    if (detail.getBackground() != null) {
+                        // 优先传 Story，如果没有就传 Rules 拼成的字符串
+                        intent.putExtra("BACKGROUND", detail.getBackground().getStory());
+                    }
 
                     // 3. 开始跳转
                     startActivity(intent);
