@@ -39,45 +39,21 @@ public class DBHelper {
             }
         });
     }
-
-    public static void createSessionIfNotExists(Context context, String scriptId, String scriptTitle) {
+    public static void getSessionAndCreateIfNotExist(Context context, String scriptId, String scriptTitle, DataCallback<ChatSessionEntity> callback) {
         executor.execute(() -> {
             ChatSessionDao dao = AppDatabase.getInstance(context).chatSessionDao();
             ChatSessionEntity session = dao.getSessionById(scriptId);
             if (session == null) {
-                ChatSessionEntity newSession = new ChatSessionEntity(scriptId, scriptTitle, "点击开始对话...", System.currentTimeMillis(), null);
-                dao.insertOrReplaceSession(newSession);
+                session = new ChatSessionEntity(scriptId, scriptTitle, "点击开始对话...", System.currentTimeMillis(), null);
+                dao.insertOrReplaceSession(session);
             }
+            final ChatSessionEntity finalSession = session;
+            mainHandler.post(() -> callback.onSuccess(finalSession));
         });
     }
 
     public static LiveData<List<ChatSessionEntity>> getAllChatSessions(Context context) {
         return AppDatabase.getInstance(context).chatSessionDao().getAllSessions();
-    }
-    
-    public static void getSession(Context context, String scriptId, DataCallback<ChatSessionEntity> callback) {
-        executor.execute(() -> {
-            ChatSessionEntity session = AppDatabase.getInstance(context).chatSessionDao().getSessionById(scriptId);
-            mainHandler.post(() -> {
-                if (session != null) {
-                    callback.onSuccess(session);
-                } else {
-                    callback.onFailure("Session not found");
-                }
-            });
-        });
-    }
-    
-    /**
-     * 🔥 新增：暴露给UI层的搜索方法
-     */
-    public static void searchMessages(Context context, String scriptId, String query, DataCallback<List<ChatMessage>> callback) {
-        executor.execute(() -> {
-            // The query needs to be wrapped with '%' for the LIKE statement to work
-            String searchQuery = "%" + query + "%";
-            List<ChatMessage> results = AppDatabase.getInstance(context).chatDao().searchMessages(scriptId, searchQuery);
-            mainHandler.post(() -> callback.onSuccess(results));
-        });
     }
 
     public static void clearUnreadCount(Context context, String scriptId) {
@@ -92,6 +68,14 @@ public class DBHelper {
             db.chatDao().clearHistory(scriptId);
             db.chatSessionDao().deleteSessionById(scriptId);
             mainHandler.post(onDeleted);
+        });
+    }
+
+    public static void searchMessages(Context context, String scriptId, String query, DataCallback<List<ChatMessage>> callback) {
+        executor.execute(() -> {
+            String searchQuery = "%" + query + "%";
+            List<ChatMessage> results = AppDatabase.getInstance(context).chatDao().searchMessages(scriptId, searchQuery);
+            mainHandler.post(() -> callback.onSuccess(results));
         });
     }
 }

@@ -59,8 +59,6 @@ public class ChatActivity extends AppCompatActivity {
         if (scriptId == null) scriptId = "default_id";
         if (scriptTitle == null) scriptTitle = "剧本杀";
 
-        DBHelper.createSessionIfNotExists(this, scriptId, scriptTitle);
-
         String originalPrompt = getIntent().getStringExtra("SYSTEM_PROMPT");
         if (originalPrompt == null) originalPrompt = "你是剧本杀主持人。";
 
@@ -75,6 +73,15 @@ public class ChatActivity extends AppCompatActivity {
 
         initViews(scriptTitle);
         loadDataAndScroll(getIntent());
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // 🔥 终极修复：当用户离开页面时，才将所有消息标记为已读（清空未读数）。
+        if (scriptId != null) {
+            DBHelper.clearUnreadCount(this, scriptId);
+        }
     }
 
     @Override
@@ -136,19 +143,15 @@ public class ChatActivity extends AppCompatActivity {
         long highlightTimestamp = intent.getLongExtra(ChatSearchActivity.RESULT_TIMESTAMP, -1);
         String highlightContent = intent.getStringExtra(ChatSearchActivity.RESULT_CONTENT);
 
-        if (highlightTimestamp != -1 && highlightContent != null) {
-            loadHistory(0, highlightTimestamp, highlightContent);
-            return;
-        }
-
-        DBHelper.getSession(this, scriptId, new DataCallback<ChatSessionEntity>() {
+        // 🔥 修复：这里只获取未读数用于滚动计算，不再执行清空操作。
+        DBHelper.getSessionAndCreateIfNotExist(this, scriptId, scriptTitle, new DataCallback<ChatSessionEntity>() {
             @Override
             public void onSuccess(ChatSessionEntity session) {
-                final int unreadCount = session.getUnreadCount();
-                if (unreadCount > 0) {
-                    DBHelper.clearUnreadCount(ChatActivity.this, scriptId);
+                if (highlightTimestamp != -1 && highlightContent != null) {
+                    loadHistory(0, highlightTimestamp, highlightContent);
+                } else {
+                    loadHistory(session.getUnreadCount(), -1, null);
                 }
-                loadHistory(unreadCount, -1, null);
             }
 
             @Override
