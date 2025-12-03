@@ -39,12 +39,14 @@ public class DBHelper {
             }
         });
     }
+    
     public static void getSessionAndCreateIfNotExist(Context context, String scriptId, String scriptTitle, DataCallback<ChatSessionEntity> callback) {
         executor.execute(() -> {
             ChatSessionDao dao = AppDatabase.getInstance(context).chatSessionDao();
             ChatSessionEntity session = dao.getSessionById(scriptId);
             if (session == null) {
-                session = new ChatSessionEntity(scriptId, scriptTitle, "点击开始对话...", System.currentTimeMillis(), null);
+                // 🔥 优化：创建新会话时，最后一条消息默认为空
+                session = new ChatSessionEntity(scriptId, scriptTitle, "", System.currentTimeMillis(), null);
                 dao.insertOrReplaceSession(session);
             }
             final ChatSessionEntity finalSession = session;
@@ -59,6 +61,17 @@ public class DBHelper {
     public static void clearUnreadCount(Context context, String scriptId) {
         executor.execute(() -> {
             AppDatabase.getInstance(context).chatSessionDao().clearUnreadCount(scriptId);
+        });
+    }
+
+    public static void clearChatMessages(Context context, String scriptId, Runnable onCleared) {
+        executor.execute(() -> {
+            AppDatabase db = AppDatabase.getInstance(context);
+            db.chatDao().clearHistory(scriptId);
+            // 🔥 优化：清空后，最后一条消息更新为空
+            db.chatSessionDao().updateSessionSummary(scriptId, "", System.currentTimeMillis());
+            db.chatSessionDao().clearUnreadCount(scriptId);
+            mainHandler.post(onCleared);
         });
     }
 

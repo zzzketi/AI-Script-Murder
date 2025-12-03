@@ -1,17 +1,21 @@
 package com.ai.aiscriptmurde.ui.chat;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -41,6 +45,7 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvTitle;
     private ImageView ivBack;
     private ImageView ivSearch;
+    private ImageView ivMore;
     private Button btnSend;
 
     private String scriptId;
@@ -78,7 +83,6 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        // 🔥 终极修复：当用户离开页面时，才将所有消息标记为已读（清空未读数）。
         if (scriptId != null) {
             DBHelper.clearUnreadCount(this, scriptId);
         }
@@ -107,6 +111,7 @@ public class ChatActivity extends AppCompatActivity {
         tvTitle = findViewById(R.id.tv_title);
         ivBack = findViewById(R.id.iv_back);
         ivSearch = findViewById(R.id.iv_search);
+        ivMore = findViewById(R.id.iv_more);
         tvTitle.setText(title);
 
         rvChat = findViewById(R.id.rv_chat);
@@ -129,6 +134,9 @@ public class ChatActivity extends AppCompatActivity {
             startActivityForResult(intent, SEARCH_REQUEST_CODE);
         });
 
+        // 🔥 新增：为“更多”按钮添加点击事件
+        ivMore.setOnClickListener(this::showPopupMenu);
+
         btnSend.setOnClickListener(v -> {
             String content = etInput.getText().toString().trim();
             if (TextUtils.isEmpty(content)) {
@@ -139,11 +147,37 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
+    private void showPopupMenu(View v) {
+        PopupMenu popupMenu = new PopupMenu(this, v);
+        popupMenu.getMenuInflater().inflate(R.menu.chat_menu, popupMenu.getMenu());
+        popupMenu.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == R.id.action_clear_history) {
+                showClearHistoryConfirmationDialog();
+                return true;
+            }
+            return false;
+        });
+        popupMenu.show();
+    }
+
+    private void showClearHistoryConfirmationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("清空聊天记录")
+                .setMessage("您确定要清空当前聊天记录吗？此操作不可撤销。")
+                .setPositiveButton("清空", (dialog, which) -> {
+                    DBHelper.clearChatMessages(ChatActivity.this, scriptId, () -> {
+                        adapter.setMessages(new ArrayList<>());
+                        Toast.makeText(ChatActivity.this, "聊天记录已清空", Toast.LENGTH_SHORT).show();
+                    });
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
     private void loadDataAndScroll(Intent intent) {
         long highlightTimestamp = intent.getLongExtra(ChatSearchActivity.RESULT_TIMESTAMP, -1);
         String highlightContent = intent.getStringExtra(ChatSearchActivity.RESULT_CONTENT);
 
-        // 🔥 修复：这里只获取未读数用于滚动计算，不再执行清空操作。
         DBHelper.getSessionAndCreateIfNotExist(this, scriptId, scriptTitle, new DataCallback<ChatSessionEntity>() {
             @Override
             public void onSuccess(ChatSessionEntity session) {
@@ -165,7 +199,7 @@ public class ChatActivity extends AppCompatActivity {
         DBHelper.loadHistory(this, scriptId, new DataCallback<List<ChatMessage>>() {
             @Override
             public void onSuccess(List<ChatMessage> history) {
-                if (history != null && !history.isEmpty()) {
+                if (history != null) { // Allow empty history
                     adapter.setMessages(history);
 
                     if (highlightTimestamp != -1 && highlightContent != null) {
@@ -178,7 +212,7 @@ public class ChatActivity extends AppCompatActivity {
                                 layoutManager.scrollToPositionWithOffset(position, 0);
                             }
                         }
-                    } else {
+                    } else if (!history.isEmpty()){
                         rvChat.scrollToPosition(adapter.getItemCount() - 1);
                     }
                 }

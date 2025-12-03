@@ -39,10 +39,19 @@
                     tools:text="剧本杀" />
 
                 <ImageView
-                    android:id="@+id/iv_search"
+                    android:id="@+id/iv_more"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_more_vert" />
+
+                <ImageView
+                    android:id="@+id/iv_search"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_toStartOf="@id/iv_more"
                     android:layout_centerVertical="true"
                     android:padding="12dp"
                     android:src="@drawable/ic_search" />
