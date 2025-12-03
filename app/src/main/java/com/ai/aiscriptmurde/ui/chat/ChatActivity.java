@@ -12,7 +12,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.db.ChatMessage;
-import com.ai.aiscriptmurde.model.CharacterItem; // 🔥 修复：改回使用 CharacterItem
+import com.ai.aiscriptmurde.db.ChatSessionEntity;
+import com.ai.aiscriptmurde.model.CharacterItem;
 import com.ai.aiscriptmurde.utils.AIUtils;
 import com.ai.aiscriptmurde.utils.DBHelper;
 import com.ai.aiscriptmurde.utils.DataCallback;
@@ -54,25 +55,22 @@ public class ChatActivity extends AppCompatActivity {
         if (originalPrompt == null) originalPrompt = "你是剧本杀主持人。";
 
         Serializable userRoleSerializable = getIntent().getSerializableExtra("USER_ROLE");
-        // 🔥 修复：检查和转换的类型改回 CharacterItem
         if (userRoleSerializable instanceof CharacterItem) {
             CharacterItem userRole = (CharacterItem) userRoleSerializable;
             this.userRoleName = userRole.getName();
-            this.systemPrompt = originalPrompt + "\n\n【当前用户扮演的角色】：“ + userRoleName";
+            this.systemPrompt = originalPrompt + "\n\n【当前用户扮演的角色】:" + userRoleName;
         } else {
             this.systemPrompt = originalPrompt;
         }
 
         initViews(scriptTitle);
-        loadHistory();
+        loadDataAndScroll();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (scriptId != null) {
-            DBHelper.clearUnreadCount(this, scriptId);
-        }
+        // 🔥 修复：移除这里的 clearUnreadCount 调用，以解决竞争问题
     }
 
     private void initViews(String title) {
@@ -104,14 +102,44 @@ public class ChatActivity extends AppCompatActivity {
             sendMessage(content);
         });
     }
+    
+    private void loadDataAndScroll() {
+        DBHelper.getSession(this, scriptId, new DataCallback<ChatSessionEntity>() {
+            @Override
+            public void onSuccess(ChatSessionEntity session) {
+                final int unreadCount = session.getUnreadCount();
+                
+                // 🔥 修复：在拿到未读数后，立即清空数据库中的计数
+                if (unreadCount > 0) {
+                    DBHelper.clearUnreadCount(ChatActivity.this, scriptId);
+                }
+                
+                loadHistory(unreadCount);
+            }
 
-    private void loadHistory() {
+            @Override
+            public void onFailure(String errorMessage) {
+                loadHistory(0);
+            }
+        });
+    }
+
+    private void loadHistory(int unreadCount) {
         DBHelper.loadHistory(this, scriptId, new DataCallback<List<ChatMessage>>() {
             @Override
             public void onSuccess(List<ChatMessage> history) {
                 if (history != null && !history.isEmpty()) {
                     adapter.setMessages(history);
-                    scrollToBottom();
+                    
+                    if (unreadCount > 0 && unreadCount <= history.size()) {
+                        // 🔥 优化：使用更精确的滚动方法，确保第一条未读消息对齐到顶部
+                        LinearLayoutManager layoutManager = (LinearLayoutManager) rvChat.getLayoutManager();
+                        if (layoutManager != null) {
+                            layoutManager.scrollToPositionWithOffset(history.size() - unreadCount, 0);
+                        }
+                    } else {
+                        rvChat.scrollToPosition(history.size() - 1);
+                    }
                 }
             }
 

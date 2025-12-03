@@ -34,7 +34,6 @@ public class DBHelper {
             String lastMessage = msg.getSenderName() + ": " + msg.getContent();
             db.chatSessionDao().updateSessionSummary(msg.getScriptId(), lastMessage, msg.getTimestamp());
 
-            // 🔥 核心逻辑：如果不是用户自己发的消息，则未读数 +1
             if (!msg.isUser) {
                 db.chatSessionDao().incrementUnreadCount(msg.getScriptId());
             }
@@ -55,10 +54,23 @@ public class DBHelper {
     public static LiveData<List<ChatSessionEntity>> getAllChatSessions(Context context) {
         return AppDatabase.getInstance(context).chatSessionDao().getAllSessions();
     }
-
+    
     /**
-     * 🔥 新增：暴露给UI层，用于清空指定会话的未读数
+     * 🔥 新增：异步获取单个会话的详情
      */
+    public static void getSession(Context context, String scriptId, DataCallback<ChatSessionEntity> callback) {
+        executor.execute(() -> {
+            ChatSessionEntity session = AppDatabase.getInstance(context).chatSessionDao().getSessionById(scriptId);
+            mainHandler.post(() -> {
+                if (session != null) {
+                    callback.onSuccess(session);
+                } else {
+                    callback.onFailure("Session not found");
+                }
+            });
+        });
+    }
+
     public static void clearUnreadCount(Context context, String scriptId) {
         executor.execute(() -> {
             AppDatabase.getInstance(context).chatSessionDao().clearUnreadCount(scriptId);
