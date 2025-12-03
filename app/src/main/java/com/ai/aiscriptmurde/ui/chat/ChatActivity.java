@@ -1,13 +1,19 @@
 package com.ai.aiscriptmurde.ui.chat;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.ai.aiscriptmurde.R;
@@ -21,16 +27,20 @@ import com.ai.aiscriptmurde.utils.DataCallback;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatActivity extends AppCompatActivity {
+
+    private static final int SEARCH_REQUEST_CODE = 101;
 
     private RecyclerView rvChat;
     private ChatAdapter adapter;
     private EditText etInput;
     private TextView tvTitle;
     private ImageView ivBack;
+    private ImageView ivSearch;
     private Button btnSend;
 
     private String scriptId;
@@ -64,18 +74,32 @@ public class ChatActivity extends AppCompatActivity {
         }
 
         initViews(scriptTitle);
-        loadDataAndScroll();
+        loadDataAndScroll(getIntent());
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        // 🔥 修复：移除这里的 clearUnreadCount 调用，以解决竞争问题
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        loadDataAndScroll(intent);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SEARCH_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
+            long timestamp = data.getLongExtra(ChatSearchActivity.RESULT_TIMESTAMP, -1);
+            String content = data.getStringExtra(ChatSearchActivity.RESULT_CONTENT);
+            if (timestamp != -1 && content != null) {
+                highlightMessage(timestamp, content);
+            }
+        }
     }
 
     private void initViews(String title) {
         tvTitle = findViewById(R.id.tv_title);
         ivBack = findViewById(R.id.iv_back);
+        ivSearch = findViewById(R.id.iv_search);
         tvTitle.setText(title);
 
         rvChat = findViewById(R.id.rv_chat);
@@ -92,6 +116,11 @@ public class ChatActivity extends AppCompatActivity {
         rvChat.setAdapter(adapter);
 
         ivBack.setOnClickListener(v -> finish());
+        ivSearch.setOnClickListener(v -> {
+            Intent intent = new Intent(this, ChatSearchActivity.class);
+            intent.putExtra(ChatSearchActivity.EXTRA_SCRIPT_ID, scriptId);
+            startActivityForResult(intent, SEARCH_REQUEST_CODE);
+        });
 
         btnSend.setOnClickListener(v -> {
             String content = etInput.getText().toString().trim();
@@ -102,52 +131,79 @@ public class ChatActivity extends AppCompatActivity {
             sendMessage(content);
         });
     }
-    
-    private void loadDataAndScroll() {
+
+    private void loadDataAndScroll(Intent intent) {
+        long highlightTimestamp = intent.getLongExtra(ChatSearchActivity.RESULT_TIMESTAMP, -1);
+        String highlightContent = intent.getStringExtra(ChatSearchActivity.RESULT_CONTENT);
+
+        if (highlightTimestamp != -1 && highlightContent != null) {
+            loadHistory(0, highlightTimestamp, highlightContent);
+            return;
+        }
+
         DBHelper.getSession(this, scriptId, new DataCallback<ChatSessionEntity>() {
             @Override
             public void onSuccess(ChatSessionEntity session) {
                 final int unreadCount = session.getUnreadCount();
-                
-                // 🔥 修复：在拿到未读数后，立即清空数据库中的计数
                 if (unreadCount > 0) {
                     DBHelper.clearUnreadCount(ChatActivity.this, scriptId);
                 }
-                
-                loadHistory(unreadCount);
+                loadHistory(unreadCount, -1, null);
             }
 
             @Override
             public void onFailure(String errorMessage) {
-                loadHistory(0);
+                loadHistory(0, -1, null);
             }
         });
     }
 
-    private void loadHistory(int unreadCount) {
+    private void loadHistory(int unreadCount, long highlightTimestamp, String highlightContent) {
         DBHelper.loadHistory(this, scriptId, new DataCallback<List<ChatMessage>>() {
             @Override
             public void onSuccess(List<ChatMessage> history) {
                 if (history != null && !history.isEmpty()) {
                     adapter.setMessages(history);
-                    
-                    if (unreadCount > 0 && unreadCount <= history.size()) {
-                        // 🔥 优化：使用更精确的滚动方法，确保第一条未读消息对齐到顶部
+
+                    if (highlightTimestamp != -1 && highlightContent != null) {
+                        highlightMessage(highlightTimestamp, highlightContent);
+                    } else if (unreadCount > 0 && unreadCount <= history.size()) {
                         LinearLayoutManager layoutManager = (LinearLayoutManager) rvChat.getLayoutManager();
                         if (layoutManager != null) {
-                            layoutManager.scrollToPositionWithOffset(history.size() - unreadCount, 0);
+                            int position = adapter.findPositionByTimestampAndContent(history.get(history.size() - unreadCount).getTimestamp(), history.get(history.size() - unreadCount).getContent());
+                            if (position != -1) {
+                                layoutManager.scrollToPositionWithOffset(position, 0);
+                            }
                         }
                     } else {
-                        rvChat.scrollToPosition(history.size() - 1);
+                        rvChat.scrollToPosition(adapter.getItemCount() - 1);
                     }
                 }
             }
 
             @Override
-            public void onFailure(String errorMessage) {
-                // Log error
-            }
+            public void onFailure(String errorMessage) { }
         });
+    }
+
+    private void highlightMessage(long timestamp, String content) {
+        int position = adapter.findPositionByTimestampAndContent(timestamp, content);
+        if (position != -1) {
+            LinearLayoutManager layoutManager = (LinearLayoutManager) rvChat.getLayoutManager();
+            if (layoutManager != null) {
+                layoutManager.scrollToPositionWithOffset(position, 0);
+                rvChat.post(() -> {
+                    RecyclerView.ViewHolder holder = rvChat.findViewHolderForAdapterPosition(position);
+                    if (holder != null) {
+                        final View itemView = holder.itemView;
+                        itemView.setBackgroundColor(ContextCompat.getColor(ChatActivity.this, R.color.highlight_color));
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            itemView.setBackgroundColor(ContextCompat.getColor(ChatActivity.this, android.R.color.transparent));
+                        }, 1000);
+                    }
+                });
+            }
+        }
     }
 
     private void sendMessage(String content) {
@@ -171,12 +227,11 @@ public class ChatActivity extends AppCompatActivity {
             public void onSuccess(String aiReply) {
                 List<ChatMessage> aiMessages = parseAiResponse(aiReply);
                 for (ChatMessage aiMsg : aiMessages) {
-                    DBHelper.insertMessage(ChatActivity.this, aiMsg);
                     adapter.addMessage(aiMsg);
+                    DBHelper.insertMessage(ChatActivity.this, aiMsg);
                 }
                 scrollToBottom();
             }
-
             @Override
             public void onFailure(String errorMessage) {
                 addSystemMessage("⚠️ " + errorMessage);
@@ -213,8 +268,8 @@ public class ChatActivity extends AppCompatActivity {
 
     private void addSystemMessage(String text) {
         ChatMessage sysMsg = new ChatMessage(scriptId, "系统", null, text, false);
-        DBHelper.insertMessage(this, sysMsg);
         adapter.addMessage(sysMsg);
+        DBHelper.insertMessage(this, sysMsg);
         scrollToBottom();
     }
 }

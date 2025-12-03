@@ -55,9 +55,6 @@ public class DBHelper {
         return AppDatabase.getInstance(context).chatSessionDao().getAllSessions();
     }
     
-    /**
-     * 🔥 新增：异步获取单个会话的详情
-     */
     public static void getSession(Context context, String scriptId, DataCallback<ChatSessionEntity> callback) {
         executor.execute(() -> {
             ChatSessionEntity session = AppDatabase.getInstance(context).chatSessionDao().getSessionById(scriptId);
@@ -68,6 +65,18 @@ public class DBHelper {
                     callback.onFailure("Session not found");
                 }
             });
+        });
+    }
+    
+    /**
+     * 🔥 新增：暴露给UI层的搜索方法
+     */
+    public static void searchMessages(Context context, String scriptId, String query, DataCallback<List<ChatMessage>> callback) {
+        executor.execute(() -> {
+            // The query needs to be wrapped with '%' for the LIKE statement to work
+            String searchQuery = "%" + query + "%";
+            List<ChatMessage> results = AppDatabase.getInstance(context).chatDao().searchMessages(scriptId, searchQuery);
+            mainHandler.post(() -> callback.onSuccess(results));
         });
     }
 
