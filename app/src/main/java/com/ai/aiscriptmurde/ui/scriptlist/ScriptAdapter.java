@@ -69,7 +69,7 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
 
         // 4. 图片加载
 
-        String imageUrl = "http://10.0.2.2:8000/static/images/" + script.getImage() + ".png";
+        String imageUrl = "http://10.20.31.41:8000/static/images/" + script.getImage() + ".png";
 
         // 使用 Glide 加载
         com.bumptech.glide.Glide.with(context)

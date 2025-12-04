@@ -76,7 +76,7 @@ public class ScriptDetailActivity extends AppCompatActivity {
         tvTitle.setText(detail.getTitle());
         tvSubtitle.setText(detail.getDesc());
 
-        String coverUrl = "http://10.0.2.2:8000/static/images/" + detail.getImage() + ".png";
+        String coverUrl = "http://10.20.31.41:8000/static/images/" + detail.getImage() + ".png";
         Glide.with(this).load(coverUrl).placeholder(R.drawable.ic_launcher_background).into(ivCover);
 
         if (detail.getBackground() != null) {
@@ -126,7 +126,7 @@ public class ScriptDetailActivity extends AppCompatActivity {
 
 
             if (item.getAvatar() != null) {
-                String avatarUrl = "http://10.0.2.2:8000/static/images/" + item.getAvatar() + ".png";
+                String avatarUrl = "http://10.20.31.41:8000/static/images/" + item.getAvatar() + ".png";
                 Glide.with(this)
                         .load(avatarUrl)
                         .placeholder(R.drawable.ic_launcher_background)
