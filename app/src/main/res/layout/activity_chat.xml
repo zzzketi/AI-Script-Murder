@@ -1,64 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:orientation="vertical">
 
-    <RelativeLayout
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="#FFFFFF"
-        android:elevation="4dp">
+        android:layout_height="wrap_content">
 
-        <ImageView
-            android:id="@+id/iv_back"
-            android:layout_width="40dp"
-            android:layout_height="match_parent"
-            android:padding="10dp"
-            android:src="@drawable/ic_back"/>
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="剧本名称"
-            android:textSize="18sp"
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:contentInsetStart="0dp">
 
-            android:textStyle="bold"/>
-    </RelativeLayout>
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageView
+                    android:id="@+id/iv_back"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_centerVertical="true"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_arrow_back" />
+
+                <TextView
+                    android:id="@+id/tv_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp"
+                    tools:text="剧本杀" />
+
+                <ImageView
+                    android:id="@+id/iv_more"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_more_vert" />
+
+                <ImageView
+                    android:id="@+id/iv_search"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_toStartOf="@id/iv_more"
+                    android:layout_centerVertical="true"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_search" />
+
+            </RelativeLayout>
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_chat"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="10dp"
-        android:clipToPadding="false"/>
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:padding="8dp"
+        android:background="#f0f0f0"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:minHeight="56dp"
+        android:orientation="horizontal"
+        android:padding="8dp">
 
         <EditText
             android:id="@+id/et_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@null"
+            android:background="@android:color/white"
             android:hint="输入你的推理..."
-            android:padding="10dp"
-            android:maxLines="3"/>
+            android:maxLines="4"
+            android:padding="12dp" />
 
         <Button
             android:id="@+id/btn_send"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="发送"
-            android:layout_marginStart="8dp"/>
+            android:layout_marginStart="8dp"
+            android:text="发送" />
     </LinearLayout>
 </LinearLayout>
