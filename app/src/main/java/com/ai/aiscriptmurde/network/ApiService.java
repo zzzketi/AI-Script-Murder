@@ -15,4 +15,7 @@ public interface ApiService {
     // 获取详情
     @GET("scripts/{id}")
     Call<ScriptDetailModel> getScriptDetail(@Path("id") String id);
+
+    @GET("scripts/score")
+    Call<ScriptListResponse> getScriptsAsScore();
 }

@@ -39,6 +39,9 @@
 
         <activity android:name=".ui.scriptlist.ScriptDetailActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+        <activity
+            android:name=".ui.scriptlist.ContainerActivity"
+            android:exported="false" />
 
     </application>
 

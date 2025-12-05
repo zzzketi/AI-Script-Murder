@@ -1,6 +1,7 @@
 package com.ai.aiscriptmurde.ui.scriptlist;
 // 你的包名
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.model.ScriptModel;
+import com.ai.aiscriptmurde.network.RetrofitClient;
 import com.ai.aiscriptmurde.utils.ScriptUtils;
 
 import java.util.List;
@@ -21,6 +23,8 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
     private List<ScriptModel> mData;
     private Context context;
     private OnItemClickListener mListener; //监听器
+
+    private boolean mShowScore;
 
     //点击事件接口
     public interface OnItemClickListener {
@@ -32,8 +36,9 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
         this.mListener = listener;
     }
 
-    public ScriptAdapter(List<ScriptModel> data) {
+    public ScriptAdapter(List<ScriptModel> data, boolean showScore) {
         this.mData = data;
+        this.mShowScore = showScore;
     }
 
     @NonNull
@@ -44,6 +49,7 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
         return new ViewHolder(view);
     }
 
+    @SuppressLint("DefaultLocale")
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         ScriptModel script = mData.get(position);
@@ -67,9 +73,18 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
             holder.tvTags.setText(sb.toString());
         }
 
+        if (holder.tvScore != null) {
+            if (mShowScore) {
+                holder.tvScore.setVisibility(View.VISIBLE);
+                holder.tvScore.setText(String.format("%.1f分", script.getScore()));
+            } else {
+                holder.tvScore.setVisibility(View.GONE);
+            }
+        }
+
         // 4. 图片加载
 
-        String imageUrl = "http://10.0.2.2:8000/static/images/" + script.getImage() + ".png";
+        String imageUrl = RetrofitClient.getImageUrl(script.getImage());
 
         // 使用 Glide 加载
         com.bumptech.glide.Glide.with(context)
@@ -96,7 +111,7 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvTitle, tvDesc, tvTags; // 声明变量
+        TextView tvTitle, tvDesc, tvTags,tvScore;; // 声明变量
         ImageView ivCover;
 
         public ViewHolder(View itemView) {
@@ -106,6 +121,7 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
             tvDesc = itemView.findViewById(R.id.tv_desc);
             tvTags = itemView.findViewById(R.id.tv_tags);
             ivCover = itemView.findViewById(R.id.iv_cover);
+            tvScore = itemView.findViewById(R.id.tv_score);
         }
     }
 }
