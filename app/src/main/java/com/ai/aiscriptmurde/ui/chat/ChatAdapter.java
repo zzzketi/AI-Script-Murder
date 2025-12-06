@@ -1,148 +1,135 @@
 package com.ai.aiscriptmurde.ui.chat;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.db.ChatMessage;
-import java.util.ArrayList;
+
 import java.util.List;
-import java.util.Objects;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    private static final int TYPE_HEADER = 0;
-    private static final int TYPE_AI = 1;
-    private static final int TYPE_USER = 2;
-    private static final int TYPE_SYSTEM = 3;
+    private List<ChatMessage> messageList;
 
-    private List<ChatMessage> messages = new ArrayList<>();
-    private String backgroundStory;
-
-    public void setBackgroundStory(String story) {
-        this.backgroundStory = story;
-        notifyDataSetChanged();
+    public ChatAdapter( List<ChatMessage> messageList) {
+        this.messageList = messageList;
     }
 
-    public void setMessages(List<ChatMessage> list) {
-        this.messages = list;
-        notifyDataSetChanged();
-    }
-
-    public void addMessage(ChatMessage msg) {
-        this.messages.add(msg);
-        notifyItemInserted(getItemCount() - 1);
-    }
-
-    public List<ChatMessage> getMessages() {
-        return messages;
-    }
-
-    /**
-     * 🔥 终极修复：让 Adapter 自己负责根据复合唯一标识（时间戳+内容）查找位置
-     */
-    public int findPositionByTimestampAndContent(long timestamp, String content) {
-        for (int i = 0; i < messages.size(); i++) {
-            ChatMessage msg = messages.get(i);
-            if (msg.getTimestamp() == timestamp && Objects.equals(msg.getContent(), content)) {
-                return backgroundStory != null ? i + 1 : i;
-            }
-        }
-        return -1; // Not found
-    }
-
-    @Override
-    public int getItemCount() {
-        return backgroundStory != null ? messages.size() + 1 : messages.size();
-    }
-
+    // 1. 核心：根据消息类型返回不同的 ViewType
     @Override
     public int getItemViewType(int position) {
-        if (backgroundStory != null && position == 0) {
-            return TYPE_HEADER;
-        }
-        int realPosition = backgroundStory != null ? position - 1 : position;
-        ChatMessage msg = messages.get(realPosition);
-        if (msg.senderName != null && (msg.senderName.contains("系统") || msg.senderName.contains("主持人"))) {
-            return TYPE_SYSTEM;
-        }
-        return msg.isUser ? TYPE_USER : TYPE_AI;
+        return messageList.get(position).getType();
     }
 
+    // 2. 核心：创建 ViewHolder
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        if (viewType == TYPE_HEADER) {
-            return new HeaderViewHolder(inflater.inflate(R.layout.item_chat_intro, parent, false));
-        } else if (viewType == TYPE_SYSTEM) {
-            return new SystemViewHolder(inflater.inflate(R.layout.item_chat_intro, parent, false));
-        } else if (viewType == TYPE_USER) {
-            return new UserViewHolder(inflater.inflate(R.layout.item_chat_right, parent, false));
-        } else {
-            return new AIViewHolder(inflater.inflate(R.layout.item_chat_left, parent, false));
+        // 【重点】直接从 parent 获取 Context
+
+        if (viewType == ChatMessage.TYPE_USER) {
+            View view = inflater.inflate(R.layout.item_chat_right, parent, false);
+            return new UserViewHolder(view);
+        }
+        else if (viewType == ChatMessage.TYPE_PLOT) {
+            View view = inflater.inflate(R.layout.item_chat_left, parent, false);
+            return new NpcViewHolder(view);
+        }
+        else if (viewType == ChatMessage.TYPE_SYSTEM) {
+            View view = inflater.inflate(R.layout.item_chat_intro, parent, false);
+            return new SystemViewHolder(view);
+        }
+
+        throw new IllegalArgumentException("Invalid View Type");
+    }
+
+    // 3. 核心：绑定数据
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        ChatMessage message = messageList.get(position);
+
+        if (holder instanceof UserViewHolder) {
+            ((UserViewHolder) holder).bind(message);
+        } else if (holder instanceof NpcViewHolder) {
+            ((NpcViewHolder) holder).bind(message);
+        } else if (holder instanceof SystemViewHolder) {
+            ((SystemViewHolder) holder).bind(message);
         }
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        if (holder instanceof HeaderViewHolder) {
-            ((HeaderViewHolder) holder).tvContent.setText(backgroundStory);
-            if (((HeaderViewHolder) holder).tvTitle != null) {
-                ((HeaderViewHolder) holder).tvTitle.setText("📜 剧本背景");
-            }
-        } else {
-            int realPosition = backgroundStory != null ? position - 1 : position;
-            ChatMessage msg = messages.get(realPosition);
-            if (holder instanceof UserViewHolder) {
-                ((UserViewHolder) holder).tvContent.setText(msg.content);
-            } else if (holder instanceof AIViewHolder) {
-                ((AIViewHolder) holder).tvContent.setText(msg.content);
-                ((AIViewHolder) holder).tvName.setText(msg.senderName);
-            } else if (holder instanceof SystemViewHolder) {
-                ((SystemViewHolder) holder).tvContent.setText(msg.content);
-                if (((SystemViewHolder) holder).tvTitle != null) {
-                    ((SystemViewHolder) holder).tvTitle.setText("📜 系统提示");
-                }
-            }
-        }
+    public int getItemCount() {
+        return messageList != null ? messageList.size() : 0;
     }
 
-    static class SystemViewHolder extends RecyclerView.ViewHolder {
-        TextView tvContent, tvTitle;
-        public SystemViewHolder(@NonNull View itemView) {
-            super(itemView);
-            tvContent = itemView.findViewById(R.id.tv_intro_content);
-            tvTitle = itemView.findViewById(R.id.tv_intro_title);
-        }
+    // --- 辅助方法：添加单条消息并滚动 ---
+    public void addMessage(ChatMessage message) {
+        messageList.add(message);
+        notifyItemInserted(messageList.size() - 1);
     }
 
-    static class HeaderViewHolder extends RecyclerView.ViewHolder {
-        TextView tvContent, tvTitle;
-        public HeaderViewHolder(@NonNull View itemView) {
-            super(itemView);
-            tvContent = itemView.findViewById(R.id.tv_intro_content);
-            tvTitle = itemView.findViewById(R.id.tv_intro_title);
-        }
-    }
+    // --- ViewHolder 内部类定义 ---
 
+    // 类型 1: 用户 (User)
     static class UserViewHolder extends RecyclerView.ViewHolder {
         TextView tvContent;
+
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
             tvContent = itemView.findViewById(R.id.tv_content);
         }
+
+        void bind(ChatMessage message) {
+            tvContent.setText(message.getContent());
+        }
     }
 
-    static class AIViewHolder extends RecyclerView.ViewHolder {
-        TextView tvContent, tvName;
-        public AIViewHolder(@NonNull View itemView) {
+    // 类型 2: NPC (AI)
+    static class NpcViewHolder extends RecyclerView.ViewHolder {
+        TextView tvContent;
+        TextView tvName;
+        ImageView ivAvatar;
+
+        public NpcViewHolder(@NonNull View itemView) {
             super(itemView);
             tvContent = itemView.findViewById(R.id.tv_content);
             tvName = itemView.findViewById(R.id.tv_name);
+            ivAvatar = itemView.findViewById(R.id.iv_avatar);
+        }
+
+        void bind(ChatMessage message) {
+            tvContent.setText(message.getContent());
+            tvName.setText(message.getSenderName());
+
+            // TODO: 在这里加载头像，推荐使用 Glide 或 Picasso
+            // Glide.with(itemView.getContext()).load(message.getAvatarUrl()).into(ivAvatar);
+
+            // 默认设置个占位图，防止空白
+            ivAvatar.setImageResource(R.drawable.ic_launcher_background);
+        }
+    }
+
+    // 类型 3: 系统消息 (System)
+    static class SystemViewHolder extends RecyclerView.ViewHolder {
+        TextView tvSystemMsg;
+
+        public SystemViewHolder(@NonNull View itemView) {
+            super(itemView);
+            tvSystemMsg = itemView.findViewById(R.id.tv_intro_content);
+        }
+
+        void bind(ChatMessage message) {
+            tvSystemMsg.setText(message.getContent());
         }
     }
 }

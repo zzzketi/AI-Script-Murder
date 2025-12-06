@@ -21,6 +21,7 @@
         <activity
             android:name=".ui.chat.ChatActivity"
             android:exported="true" >
+
         </activity>
 
         <activity
@@ -39,7 +40,6 @@
 
         <activity android:name=".ui.scriptlist.ScriptDetailActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
-
 
         <!-- 🔥 修复：移除错误指定的 Light 主题 -->
         <activity android:name=".ui.chat.ChatSearchActivity" />

@@ -9,6 +9,11 @@ import java.io.Serializable;
 @Entity(tableName = "chat_messages")
 public class ChatMessage implements Serializable {
 
+    // --- 消息方向/归属 ---
+    public static final int TYPE_USER = 1;
+    public static final int TYPE_PLOT = 2;
+    public static final int TYPE_SYSTEM = 3;
+
     @PrimaryKey(autoGenerate = true)
     public int id;
 
@@ -23,18 +28,28 @@ public class ChatMessage implements Serializable {
 
     public String content;
 
+    int type;
+
     @ColumnInfo(name = "is_user")
     public boolean isUser;
 
     public long timestamp;
 
-    public ChatMessage(String scriptId, String senderName, String roleId, String content, boolean isUser) {
-        this.scriptId = scriptId;
-        this.senderName = senderName;
-        this.roleId = roleId;
+//    public ChatMessage(String scriptId, String senderName, String roleId, String content, boolean isUser,int type) {
+//        this.scriptId = scriptId;
+//        this.senderName = senderName;
+//        this.roleId = roleId;
+//        this.content = content;
+//        this.isUser = isUser;
+//        this.timestamp = System.currentTimeMillis();
+//        this.type = type;
+//    }
+
+    public ChatMessage(String content, int type){
         this.content = content;
-        this.isUser = isUser;
+        this.type = type;
         this.timestamp = System.currentTimeMillis();
+
     }
 
     // --- Getters ---
@@ -53,5 +68,17 @@ public class ChatMessage implements Serializable {
 
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public void setContent(String s) {
+        this.content = s;
+    }
+
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
     }
 }

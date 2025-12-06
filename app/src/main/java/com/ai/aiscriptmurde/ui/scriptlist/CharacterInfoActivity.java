@@ -124,7 +124,7 @@ public class CharacterInfoActivity extends AppCompatActivity {
         if (selectedCharacter.getAvatar() != null && !selectedCharacter.getAvatar().isEmpty()) {
             String avatarId = selectedCharacter.getAvatar();
             if (avatarId != null) {
-                String avatarUrl = "http://10.20.31.41:8000/static/images/" + selectedCharacter.getAvatar() + ".png";
+                String avatarUrl = "http://localhost:8080/static/images/" + selectedCharacter.getAvatar() + ".png";
                 Glide.with(this)
                         .load(avatarUrl)
                         .placeholder(R.drawable.ic_launcher_background)

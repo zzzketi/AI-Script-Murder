@@ -5,9 +5,10 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
     // 模拟器访问本机电脑 localhost 专用 IP
-    private static final String BASE_URL = "http://10.20.31.41:8000/";
+    private static final String BASE_URL = "http://localhost:8000/";
 
     private static Retrofit retrofit = null;
+    private static RetrofitClient instance;
 
     public static ApiService getApiService() {
         if (retrofit == null) {
@@ -18,4 +19,5 @@ public class RetrofitClient {
         }
         return retrofit.create(ApiService.class);
     }
+
 }

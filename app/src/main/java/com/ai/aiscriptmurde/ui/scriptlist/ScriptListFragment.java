@@ -26,6 +26,8 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.List;
 
+import retrofit2.Call;
+
 public class ScriptListFragment extends Fragment {
 
     private ScriptAdapter adapter;
@@ -51,12 +53,19 @@ public class ScriptListFragment extends Fragment {
     // 读取JSON 文件
     private void fetchScriptsFromNetwork() {
         // 使用 Retrofit 发起请求
-        com.ai.aiscriptmurde.network.RetrofitClient.getApiService().getScripts(null)
-                .enqueue(new retrofit2.Callback<com.ai.aiscriptmurde.model.ScriptListResponse>() {
+        // 1. 泛型改为 List<ScriptModel>
+        com.ai.aiscriptmurde.network.RetrofitClient.getApiService().getScripts(null) // 注意这里去掉了 null，或者根据你的定义传参
+                .enqueue(new retrofit2.Callback<List<ScriptModel>>() {
                     @Override
-                    public void onResponse(retrofit2.Call<com.ai.aiscriptmurde.model.ScriptListResponse> call, retrofit2.Response<com.ai.aiscriptmurde.model.ScriptListResponse> response) {
+                    public void onResponse(retrofit2.Call<List<ScriptModel>> call, retrofit2.Response<List<ScriptModel>> response) {
                         if (response.isSuccessful() && response.body() != null) {
-                            List<ScriptModel> dataList = response.body().getScripts();
+                            // 2. 直接获取 List，不需要 .getScripts()
+                            List<ScriptModel> dataList = response.body();
+
+                            // 建议做一个非空判断，防止 dataList 为空时 Adapter 报错
+                            if (dataList == null) {
+                                dataList = new java.util.ArrayList<>();
+                            }
 
                             // 设置适配器
                             adapter = new ScriptAdapter(dataList);
@@ -69,22 +78,16 @@ public class ScriptListFragment extends Fragment {
                         } else {
                             // === 处理服务器返回错误
                             int errorCode = response.code();
-                            String errorMsg = response.message();
-
-                            // 打印日志到 Logcat
-                            android.util.Log.e("ScriptListFragment", "请求失败: code=" + errorCode + ", msg=" + errorMsg);
-
-                            // 提示用户
+                            android.util.Log.e("ScriptListFragment", "请求失败: code=" + errorCode);
                             if (getContext() != null) {
-                                android.widget.Toast.makeText(getContext(), "获取数据失败 (Code: " + errorCode + ")", android.widget.Toast.LENGTH_SHORT).show();
+                                android.widget.Toast.makeText(getContext(), "获取数据失败: " + errorCode, android.widget.Toast.LENGTH_SHORT).show();
                             }
                         }
                     }
 
                     @Override
-                    public void onFailure(retrofit2.Call<com.ai.aiscriptmurde.model.ScriptListResponse> call, Throwable t) {
+                    public void onFailure(Call<List<ScriptModel>> call, Throwable t) {
                         //处理网络层面的失败
-
                         String errorInfo = t.getMessage();
                         android.util.Log.e("ScriptListFragment", "网络异常: " + errorInfo);
 
@@ -97,6 +100,9 @@ public class ScriptListFragment extends Fragment {
                             android.widget.Toast.makeText(getContext(), toastMsg, android.widget.Toast.LENGTH_SHORT).show();
                         }
                     }
+
+
+
                 });
     }
 }
