@@ -3,8 +3,8 @@
     <style name="Theme.AiScriptMurde" parent="Theme.Material3.DayNight.NoActionBar">
         <!--    <style name="Theme.Aiscriptmurde" parent="Theme.MaterialComponents.DayNight.DarkActionBar">-->
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorPrimary">#37474F</item>
+        <item name="colorPrimaryVariant">#374788</item>
         <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/teal_200</item>
@@ -34,6 +34,22 @@
 
         <item name="android:dropDownVerticalOffset">4dp</item>
     </style>
+
+    <style name="CircleImageStyle">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+
+    <style name="GlobalButtonStyle" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">#37474F</item>
+
+        <item name="android:textColor">#FFFFFF</item>
+
+        <item name="cornerRadius">8dp</item>
+
+    </style>
+
 
 
 </resources>

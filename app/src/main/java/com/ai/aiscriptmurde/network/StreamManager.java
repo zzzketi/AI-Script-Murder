@@ -28,6 +28,7 @@ public class StreamManager {
                 } else {
                     postError(callback, new Exception("Server Error: " + response.code()));
                 }
+
             }
 
             @Override

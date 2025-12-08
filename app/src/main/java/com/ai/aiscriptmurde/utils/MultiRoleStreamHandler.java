@@ -46,6 +46,7 @@ public class MultiRoleStreamHandler {
                 } else {
                     mainHandler.post(() -> callback.onError(new Exception("Error: " + response.code())));
                 }
+
             }
 
 

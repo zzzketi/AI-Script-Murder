@@ -83,12 +83,12 @@ public class ScriptAdapter extends RecyclerView.Adapter<ScriptAdapter.ViewHolder
         }
 
         // 4. 图片加载
+        String assetPath = "file:///android_asset/s" + script.getId()+"_cover"+".png";
 
-        String imageUrl = RetrofitClient.getImageUrl(script.getImage());
 
         // 使用 Glide 加载
         com.bumptech.glide.Glide.with(context)
-                .load(imageUrl)
+                .load(assetPath)
                 .placeholder(R.drawable.ic_launcher_background) // 加载占位图
                 .error(R.drawable.ic_launcher_background)       // 错误占位图
                 .into(holder.ivCover);

@@ -12,8 +12,8 @@ public class RetrofitClient {
     private static Retrofit retrofit = null;
     private static RetrofitClient instance;
 
-    public static String getImageUrl(String imageName) {
-        return BASE_URL + "static/images/" + imageName + ".png";
+    public static String getImageUrl(String imageName,String scripId) {
+        return BASE_URL + "static/images/" +scripId+"/"+imageName + ".png";
     }
 
     public static ApiService getApiService() {

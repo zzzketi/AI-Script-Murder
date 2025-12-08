@@ -28,5 +28,31 @@ public class CharacterItem implements Serializable {
         this.introduction = introduction;
     }
 
+    public CharacterItem(){
 
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public void setAge(String age) {
+        this.age = age;
+    }
+
+    public void setDesc(String desc) {
+        this.desc = desc;
+    }
+
+    public void setIntroduction(String introduction) {
+        this.introduction = introduction;
+    }
 }

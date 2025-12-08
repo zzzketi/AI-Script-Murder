@@ -1,6 +1,7 @@
 package com.ai.aiscriptmurde.ui.chat;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
@@ -88,6 +89,7 @@ public class ChatActivity extends AppCompatActivity {
     private List<CharacterItem> allCharacters;
 
     private Map<String, CharacterItem> characterMap = new HashMap<>();
+    private CharacterItem currentUserRole;
 
 
 
@@ -96,7 +98,6 @@ public class ChatActivity extends AppCompatActivity {
     private final int MAX_CHAPTERS = 5;      // 最大章节数
     private boolean isGameEnded = false;     // 游戏是否结束
     // 【新增】保存当前用户的角色对象
-    private CharacterItem currentUserRole;
 
 
 
@@ -470,6 +471,7 @@ public class ChatActivity extends AppCompatActivity {
                         Toast.makeText(ChatActivity.this, "创建失败: " + response.code(), Toast.LENGTH_SHORT).show();
                     });
                 }
+
             }
 
             @Override
@@ -530,6 +532,7 @@ public class ChatActivity extends AppCompatActivity {
                                 data.getDiscussionQuestion(),
                                 ChatMessage.TYPE_SYSTEM
                         );
+                        systemMsg.setSenderName("系统");
 
                         addMessageToChat(systemMsg);
                     }
@@ -546,6 +549,7 @@ public class ChatActivity extends AppCompatActivity {
                 } else {
                     Toast.makeText(ChatActivity.this, "剧情加载失败: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
+
             }
 
             @Override
@@ -599,7 +603,7 @@ public class ChatActivity extends AppCompatActivity {
                         getIdByName(roleName),
                         roleName,
                         getAvatarByName(roleName),
-                        text,
+                        "",
                         ChatMessage.TYPE_PLOT
                 );
 
@@ -623,6 +627,7 @@ public class ChatActivity extends AppCompatActivity {
                             "",
                             ChatMessage.TYPE_SYSTEM
                     );
+                    currentStreamingMsg.setSenderName("系统");
 
 
                     //这里是addmessage的代替
@@ -689,7 +694,7 @@ public class ChatActivity extends AppCompatActivity {
 
                     if (originalList == null || originalList.isEmpty()) {
                         Toast.makeText(ChatActivity.this, "未找到角色数据", Toast.LENGTH_SHORT).show();
-                        return;
+
                     }
 
                     // 2. 【数据处理】分离显示列表(Names)和数据列表(Real Objects)
@@ -731,6 +736,7 @@ public class ChatActivity extends AppCompatActivity {
                 } else {
                     Toast.makeText(ChatActivity.this, "加载失败: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
+
             }
 
             @Override
@@ -775,11 +781,19 @@ public class ChatActivity extends AppCompatActivity {
                                     "结局揭晓：你指认了 " + targetName + "。\n\n【真相】\n" + result.getTruth(),
                                     ChatMessage.TYPE_SYSTEM
                             );
+                            endMsg.setSenderName("系统");
 
                             addMessageToChat(endMsg);
 
                             // 最终状态
-                            etInput.setHint("游戏已结束");
+                            // 1. 标记结束
+                            isGameEnded = true;
+
+                            // 2. 【关键】立刻保存状态到 SP，防止用户退出重进状态丢失
+                            saveGameStateToSP();
+
+                            // 3. 刷新 UI (这会触发 updateUIState 进入 isGameEnded 分支)
+                            updateUIState();
 
                             // 可以在这里触发显示“详细榜单”的逻辑
                             // showResultBoard(result);
@@ -789,6 +803,7 @@ public class ChatActivity extends AppCompatActivity {
                             // 失败了，是否允许重试？如果允许，需要恢复 UI
                             recoverUIState();
                         }
+
                     }
 
                     @Override
@@ -807,13 +822,36 @@ public class ChatActivity extends AppCompatActivity {
         etInput.setHint("请输入...");
     }
 
-    private void saveGameStateToSP() {
-        getSharedPreferences("GamePrefs", MODE_PRIVATE).edit()
-                .putString("session_" + scriptId, sessionId)
-                .putInt("chapter_" + scriptId, currentChapterIndex)
-                .putString("narration_" + scriptId, currentScriptNarration)
-                .apply();
+    private void UIState() {
+        setInputEnabled(false);
+        btnNextStage.setVisibility(View.GONE);
+        etInput.setHint("请输入...");
     }
+
+
+    // A. 修改保存方法：多存一个 boolean
+    private void saveGameStateToSP() {
+        SharedPreferences.Editor editor = getSharedPreferences("GamePrefs", Context.MODE_PRIVATE).edit();
+
+        // 原有的
+        editor.putString("session_" + scriptId, sessionId);
+        editor.putInt("chapter_" + scriptId, currentChapterIndex);
+        editor.putString("narration_" + scriptId, currentScriptNarration);
+        editor.putBoolean("ended_" + scriptId, isGameEnded);
+
+        // 【新增】保存当前玩家的角色信息 (关键！)
+        // 这样下次从列表点击进来时，我们才能恢复 currentUserRole
+        if (currentUserRole != null) {
+            editor.putString("my_role_id_" + scriptId, currentUserRole.getId());
+            editor.putString("my_role_name_" + scriptId, currentUserRole.getName());
+            editor.putString("my_role_avatar_" + scriptId, currentUserRole.getAvatar());
+        }
+
+        editor.apply();
+    }
+
+
+
     private void addMessageToChat(ChatMessage msg) {
         // 1. 确保设置了 scriptId (DBHelper 需要这个字段来更新 SessionSummary)
         msg.setScriptId(this.scriptId);
@@ -841,16 +879,19 @@ public class ChatActivity extends AppCompatActivity {
                 .remove("session_" + scriptId)
                 .apply();
     }
+
+
+    // B. 修改恢复方法：读取这个 boolean
     private void restoreGameStateFromSP() {
         SharedPreferences sp = getSharedPreferences("GamePrefs", MODE_PRIVATE);
         this.sessionId = sp.getString("session_" + scriptId, null);
         this.currentChapterIndex = sp.getInt("chapter_" + scriptId, 0);
         this.currentScriptNarration = sp.getString("narration_" + scriptId, "");
+        // 【新增】恢复游戏结束状态
+        this.isGameEnded = sp.getBoolean("ended_" + scriptId, false);
 
-        updateUIState(); // 更新一下标题和按钮文字
-
-        // 如果觉得有必要，可以默默调用一次 loadNextChapter 确保同步
-        // loadNextChapter();
+        // 恢复完数据后，刷新 UI
+        updateUIState();
     }
 
 
@@ -890,15 +931,43 @@ public class ChatActivity extends AppCompatActivity {
         btnNextStage.setEnabled(enabled);
     }
 
+
+
     private void updateUIState() {
+        // 1. 设置章节标题
+        tvSubtitle.setText("CHAPTER " + currentChapterIndex + " · 第 " + currentChapterIndex + " 章");
 
-        tvSubtitle.setText("CHAPTER "+currentChapterIndex+"· 第" + currentChapterIndex + " 章");
+        // 2. 判断游戏是否已经彻底结束 (结局已公布)
+        if (isGameEnded) {
+            // --- 状态 C: 游戏结束 (结局模式) ---
 
-        if (currentChapterIndex >= MAX_CHAPTERS) {
-            btnNextStage.setText("发起投票 (结局)");
-            btnNextStage.setIconResource(android.R.drawable.ic_lock_power_off); // 换个图标
+            // 隐藏右上角/底部的操作按钮
+            btnNextStage.setVisibility(View.GONE);
+
+            // 彻底禁用输入框
+            etInput.setEnabled(false);
+            etInput.setHint("游戏已结束");
+            btnSend.setEnabled(false);
+
+            // (可选) 如果你想在这里显示一个“查看真相”的回顾按钮，可以在这里 setVisibility(VISIBLE) 并改文字
+
         } else {
-            btnNextStage.setText("进入下一章");
+            // 游戏还在进行中，按钮必须可见
+            btnNextStage.setVisibility(View.VISIBLE);
+
+            // 恢复输入框 (以防之前被 loadingState 禁用了)
+            etInput.setEnabled(true);
+            etInput.setHint("请输入...");
+            btnSend.setEnabled(true);
+
+            if (currentChapterIndex >= MAX_CHAPTERS) {
+                // --- 状态 B: 最后一章 (等待投票) ---
+                btnNextStage.setText("发起投票 (结局)");
+                // btnNextStage.setIconResource(...);
+            } else {
+                // --- 状态 A: 普通章节 (继续剧情) ---
+                btnNextStage.setText("进入下一章");
+            }
         }
     }
 

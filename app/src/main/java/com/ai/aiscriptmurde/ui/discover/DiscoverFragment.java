@@ -1,9 +1,11 @@
 package com.ai.aiscriptmurde.ui.discover;
 
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,14 +20,19 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.db.ChatSessionEntity;
+import com.ai.aiscriptmurde.model.CharacterItem;
 import com.ai.aiscriptmurde.model.ScriptDetailModel;
+import com.ai.aiscriptmurde.network.RetrofitClient;
 import com.ai.aiscriptmurde.ui.chat.ChatActivity;
 import com.ai.aiscriptmurde.utils.DBHelper;
-import com.ai.aiscriptmurde.utils.ScriptUtils;
-import com.google.gson.Gson;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class DiscoverFragment extends Fragment implements ChatSessionAdapter.OnSessionInteractionListener {
 
@@ -85,35 +92,13 @@ public class DiscoverFragment extends Fragment implements ChatSessionAdapter.OnS
         }
     }
 
+
+
+
     @Override
     public void onSessionClicked(ChatSessionEntity session) {
-        String scriptId = session.getScriptId();
-        String fileName = "mock_data/details/script_" + scriptId + ".json";
-        String jsonStr = ScriptUtils.readAssetFile(getContext(), fileName);
-
-        if (jsonStr != null) {
-            Gson gson = new Gson();
-            ScriptDetailModel detail = gson.fromJson(jsonStr, ScriptDetailModel.class);
-
-            if (detail != null) {
-                Intent intent = new Intent(getContext(), ChatActivity.class);
-                intent.putExtra("SCRIPT_ID", detail.getId());
-                intent.putExtra("SCRIPT_TITLE", detail.getTitle());
-                intent.putExtra("SYSTEM_PROMPT", detail.getSystemPrompt() != null ? detail.getSystemPrompt() : "");
-
-                String background = "";
-                if (detail.getBackground() != null && detail.getBackground().getStory() != null) {
-                    background = detail.getBackground().getStory();
-                }
-                intent.putExtra("BACKGROUND", background);
-
-                startActivity(intent);
-            } else {
-                Toast.makeText(getContext(), "无法解析剧本详情", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(getContext(), "找不到剧本详情文件: " + fileName, Toast.LENGTH_SHORT).show();
-        }
+        // 直接调用网络请求方法，进去之后会自动处理跳转
+        fetchScriptAndEnterChat(getContext(), session.getScriptId(), session);
     }
 
     @Override
@@ -130,4 +115,75 @@ public class DiscoverFragment extends Fragment implements ChatSessionAdapter.OnS
                 .setNegativeButton("取消", null)
                 .show();
     }
+
+    // 在你的 Fragment 或 Adapter 或 Activity 中
+
+    private void fetchScriptAndEnterChat(Context context, String scriptId, ChatSessionEntity session) {
+
+        // 1. 【体验优化】显示 Loading，因为网络请求需要时间
+//        ProgressDialog loadingDialog = new ProgressDialog(context);
+//        loadingDialog.setMessage("正在获取剧本数据...");
+//        loadingDialog.setCancelable(false);
+//        loadingDialog.show();
+
+        // 2. 发起网络请求
+        RetrofitClient.getApiService().getScriptDetail(scriptId).enqueue(new Callback<ScriptDetailModel>() {
+            @Override
+            public void onResponse(Call<ScriptDetailModel> call, Response<ScriptDetailModel> response) {
+//                loadingDialog.dismiss(); // 关闭 Loading
+
+                if (response.isSuccessful() && response.body() != null) {
+                    // 3. 【核心】数据拿到了！在这里组装 Intent 并跳转
+                    ScriptDetailModel detail = response.body();
+                    enterChatActivity(context, detail, session);
+
+                } else {
+                    Toast.makeText(context, "加载剧本失败: " + response.code(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ScriptDetailModel> call, Throwable t) {
+//                loadingDialog.dismiss(); // 关闭 Loading
+                Toast.makeText(context, "网络错误，请检查连接", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // 辅助方法：执行跳转逻辑
+    private void enterChatActivity(Context context, ScriptDetailModel detail, ChatSessionEntity session) {
+        // 1. 尝试从 SP 读取“我的角色”信息 (用于续玩)
+        SharedPreferences sp = context.getSharedPreferences("GamePrefs", Context.MODE_PRIVATE);
+        String myRoleId = sp.getString("my_role_id_" + detail.getId(), null);
+        String myRoleName = sp.getString("my_role_name_" + detail.getId(), "");
+        String myRoleAvatar = sp.getString("my_role_avatar_" + detail.getId(), "");
+
+        Intent intent = new Intent(context, ChatActivity.class);
+        intent.putExtra("SCRIPT_ID", detail.getId());
+        intent.putExtra("SCRIPT_TITLE", detail.getTitle());
+
+        // 2. 传递完整的角色列表 (用于显示头像)
+        // 因为 detail 是刚从网络拉下来的，里面肯定有 characters
+        if (detail.getCharacters() != null) {
+            intent.putExtra("ALL_CHARACTERS", (Serializable) detail.getCharacters());
+        }
+
+        // 3. 恢复“我的角色”
+        if (myRoleId != null) {
+            CharacterItem myRole = new CharacterItem();
+            myRole.setId(myRoleId);
+            myRole.setName(myRoleName);
+            myRole.setAvatar(myRoleAvatar);
+            intent.putExtra("USER_ROLE", myRole);
+        } else {
+            // 如果 SP 里没有角色信息，说明数据丢了，或者这是新开的局
+            // 这种情况下，通常应该跳到“选角页面”，或者默认取第一个角色（如果是测试）
+            //todo
+            //intent.putExtra("USER_ROLE", detail.getCharacters().get(0));
+        }
+
+        context.startActivity(intent);
+    }
+
+
 }

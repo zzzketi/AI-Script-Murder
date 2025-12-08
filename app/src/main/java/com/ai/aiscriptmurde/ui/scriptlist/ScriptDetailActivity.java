@@ -28,6 +28,9 @@ import java.util.List;
 
 public class ScriptDetailActivity extends AppCompatActivity {
 
+    private String scriptId;
+
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -39,7 +42,7 @@ public class ScriptDetailActivity extends AppCompatActivity {
             finish();
         });
 
-        String scriptId = getIntent().getStringExtra("key_script_id");
+        scriptId = getIntent().getStringExtra("key_script_id");
         
         if (scriptId != null) {
             loadDetailDataNetwork(scriptId);
@@ -78,9 +81,8 @@ public class ScriptDetailActivity extends AppCompatActivity {
         tvTitle.setText(detail.getTitle());
         tvSubtitle.setText(detail.getDesc());
 
-
-        String coverUrl = RetrofitClient.getImageUrl(detail.getImage());
-        Glide.with(this).load(coverUrl).placeholder(R.drawable.ic_launcher_background).into(ivCover);
+        String assetPath = "file:///android_asset/s" + detail.getId()+"_cover"+".png";
+        Glide.with(this).load(assetPath).placeholder(R.drawable.ic_launcher_background).into(ivCover);
 
         if (detail.getBackground() != null) {
             TextView tvTime = findViewById(R.id.tv_detail_time);
@@ -129,10 +131,11 @@ public class ScriptDetailActivity extends AppCompatActivity {
 
 
             if (item.getAvatar() != null) {
+                String assetPath = "file:///android_asset/s" + scriptId+"_"+item.getId()+".png";
 
-                String avatarUrl = RetrofitClient.getImageUrl(item.getAvatar());
+//                String avatarUrl = RetrofitClient.getImageUrl(scriptId,item.getId());
                 Glide.with(this)
-                        .load(avatarUrl)
+                        .load(assetPath)
                         .placeholder(R.drawable.ic_launcher_background)
                         .circleCrop()
                         .into(ivAvatar);

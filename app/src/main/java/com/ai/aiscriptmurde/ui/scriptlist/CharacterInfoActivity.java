@@ -130,11 +130,14 @@ public class CharacterInfoActivity extends AppCompatActivity {
         if (selectedCharacter.getAvatar() != null && !selectedCharacter.getAvatar().isEmpty()) {
             String avatarId = selectedCharacter.getAvatar();
             if (avatarId != null) {
-                String avatarUrl = "http://localhost:8080/static/images/" + selectedCharacter.getAvatar() + ".png";
+                String assetPath = "file:///android_asset/s" + scriptId+"_"+selectedCharacter.getId()+".png";
+
+//                String avatarUrl = RetrofitClient.getImageUrl(scriptId,item.getId());
                 Glide.with(this)
-                        .load(avatarUrl)
+                        .load(assetPath)
                         .placeholder(R.drawable.ic_launcher_background)
                         .into(ivAvatar);
+
 
             } else {
                 // 如果找不到对应的头像资源，使用默认头像

@@ -144,6 +144,7 @@ public class ScriptListFragment extends Fragment {
                         android.widget.Toast.makeText(getContext(), "获取数据失败 (Code: " + errorCode + ")", android.widget.Toast.LENGTH_SHORT).show();
                     }
                 }
+
             }
 
             @Override
