@@ -2,6 +2,7 @@ package com.ai.aiscriptmurde.ui.chat;
 
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
@@ -42,11 +43,11 @@ import com.ai.aiscriptmurde.network.RetrofitClient;
 import com.ai.aiscriptmurde.network.StreamCallback;
 import com.ai.aiscriptmurde.network.StreamManager;
 import com.ai.aiscriptmurde.network.StreamUiCallback;
+import com.ai.aiscriptmurde.ui.scriptlist.CharacterInfoActivity;
 import com.ai.aiscriptmurde.ui.scriptlist.ScriptDetailActivity;
 import com.ai.aiscriptmurde.utils.DBHelper;
 import com.ai.aiscriptmurde.utils.DataCallback;
 import com.ai.aiscriptmurde.utils.MultiRoleStreamHandler;
-import com.ai.aiscriptmurde.utils.RolePlayStreamHandler;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 
@@ -196,7 +197,7 @@ public class ChatActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Android 13 (API 33) 及以上：需要传入具体的类类型
             // 注意：这里我们传入 ArrayList.class
-            allCharacters = getIntent().getSerializableExtra("ALL_CHARACTERS", ArrayList.class);
+            allCharacters = (List<CharacterItem>)getIntent().getSerializableExtra("ALL_CHARACTERS", ArrayList.class);
         } else {
             // 旧版本写法
             Serializable serializable = getIntent().getSerializableExtra("ALL_CHARACTERS");
@@ -377,8 +378,13 @@ public class ChatActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         if (id == R.id.action_search) {
+            Intent intent = new Intent( ChatActivity.this,ChatSearchActivity.class);
+
+            // 🔥 核心：把接力棒（数据）传给 ChatActivity
+            intent.putExtra("EXTRA_SCRIPT_ID", scriptId);
+
+            startActivity(intent);
             // 处理搜索逻辑
-            Toast.makeText(this, "打开线索搜证面板...", Toast.LENGTH_SHORT).show();
             return true;
         }
         if (id == R.id.restart_game) {
@@ -394,6 +400,19 @@ public class ChatActivity extends AppCompatActivity {
                     .show();
             return true;
         }
+        if (id == R.id.action_clear_history){
+            new AlertDialog.Builder(this)
+                    .setTitle("清空聊天记录")
+                    .setMessage("您确定要清空当前聊天记录吗？此操作不可撤销。")
+                    .setPositiveButton("清空", (dialog, which) -> {
+                        DBHelper.clearChatMessages(ChatActivity.this, scriptId, () -> {
+                            chatAdapter.setMessageList(new ArrayList<>());
+                            Toast.makeText(ChatActivity.this, "聊天记录已清空", Toast.LENGTH_SHORT).show();
+                        });
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        }
 
         return super.onOptionsItemSelected(item);
     }
@@ -403,18 +422,39 @@ public class ChatActivity extends AppCompatActivity {
         // 1. 清空数据库消息
         DBHelper.deleteChatHistory(this, scriptId, () -> {
             // 2. 清空 SP 里的进度
-            getSharedPreferences("GamePrefs", MODE_PRIVATE).edit()
-                    .remove("session_" + scriptId)
-                    .remove("chapter_" + scriptId)
-                    .apply();
+            SharedPreferences sp = getSharedPreferences("GamePrefs", MODE_PRIVATE);
+            SharedPreferences.Editor editor = sp.edit();
+
+            // 1. 删除核心进度数据
+            editor.remove("session_" + scriptId);
+            editor.remove("chapter_" + scriptId);
+            editor.remove("narration_" + scriptId);
+            editor.remove("ended_" + scriptId);
+
+            // 2. 删除之前保存的角色信息 (如果没删这个，下次进来可能不会让你选角，直接用旧角色了)
+            editor.remove("my_role_id_" + scriptId);
+            editor.remove("my_role_name_" + scriptId);
+            editor.remove("my_role_avatar_" + scriptId);
+
+            // 3. 提交更改
+            editor.apply();
+
+            // 4. 【重要】同时重置内存中的变量！
+            // 否则虽然本地删了，但当前内存里还保留着旧值，导致逻辑错乱
+//            this.sessionId = null;
+            this.currentChapterIndex = 0;
+            this.currentScriptNarration = "";
+            this.isGameEnded = false;
+            this.currentUserRole = null; // 如果你需要重新选角，这里也要置空
+
+
 
             // 3. 清空内存列表
             messageList.clear();
-            chatAdapter.notifyDataSetChanged();
 
             // 4. 重新开局
             currentChapterIndex = 0;
-            startNewGameSession();
+            checkAndStartGame();
         });
     }
     // ================================================================
@@ -570,9 +610,9 @@ public class ChatActivity extends AppCompatActivity {
                 new ChatMessage(
                         scriptId,
                         sessionId,
+                        currentUserRole.getId(),
                         currentUserRole.getName(),
                         currentUserRole.getAvatar(),
-                        currentUserRole.getId(),
                         text,
                         ChatMessage.TYPE_USER
                 )
@@ -867,30 +907,63 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void saveSessionLocally(String sId) {
-        getSharedPreferences("GamePrefs", MODE_PRIVATE)
-                .edit()
-                .putString("session_" + scriptId, sId)
-                .apply();
+        SharedPreferences.Editor editor = getSharedPreferences("GamePrefs", Context.MODE_PRIVATE).edit();
+
+        // 原有的
+        editor.putString("session_" + scriptId, sessionId);
+        editor.putInt("chapter_" + scriptId, currentChapterIndex);
+        editor.putString("narration_" + scriptId, currentScriptNarration);
+        editor.putBoolean("ended_" + scriptId, isGameEnded);
+
+        // 【新增】保存当前玩家的角色信息 (关键！)
+        // 这样下次从列表点击进来时，我们才能恢复 currentUserRole
+        if (currentUserRole != null) {
+            editor.putString("my_role_id_" + scriptId, currentUserRole.getId());
+            editor.putString("my_role_name_" + scriptId, currentUserRole.getName());
+            editor.putString("my_role_avatar_" + scriptId, currentUserRole.getAvatar());
+        }
+
+        editor.apply();
     }
 
-    private void clearLocalSession() {
-        getSharedPreferences("GamePrefs", MODE_PRIVATE)
-                .edit()
-                .remove("session_" + scriptId)
-                .apply();
-    }
+
 
 
     // B. 修改恢复方法：读取这个 boolean
     private void restoreGameStateFromSP() {
+        // 【新增】恢复游戏结束状态
+
         SharedPreferences sp = getSharedPreferences("GamePrefs", MODE_PRIVATE);
+
+        // 1. 恢复基础游戏进度
         this.sessionId = sp.getString("session_" + scriptId, null);
         this.currentChapterIndex = sp.getInt("chapter_" + scriptId, 0);
         this.currentScriptNarration = sp.getString("narration_" + scriptId, "");
-        // 【新增】恢复游戏结束状态
         this.isGameEnded = sp.getBoolean("ended_" + scriptId, false);
 
-        // 恢复完数据后，刷新 UI
+        // 2. 【核心补充】恢复玩家的角色身份 (否则发消息会崩)
+        String savedRoleId = sp.getString("my_role_id_" + scriptId, null);
+        String savedRoleName = sp.getString("my_role_name_" + scriptId, "");
+        String savedRoleAvatar = sp.getString("my_role_avatar_" + scriptId, "");
+
+        // 如果本地存了角色信息，就重建对象
+        if (savedRoleId != null) {
+            // 重建 CharacterItem 对象
+            // 注意：根据你的构造函数，这里可能需要调整，或者直接用 setter
+            this.currentUserRole = new CharacterItem();
+            this.currentUserRole.setId(savedRoleId);
+            this.currentUserRole.setName(savedRoleName);
+            this.currentUserRole.setAvatar(savedRoleAvatar);
+            // 如果你的 CharacterItem 有其他必填字段，记得处理
+
+
+        } else {
+            // 如果读不到角色信息，说明存档损坏或逻辑有误
+            // 这里可以做个容错，比如提示用户重新开局，或者赋一个默认值
+            Log.e("Restore", "警告：找回了进度但丢失了角色身份");
+        }
+
+        // 3. 刷新 UI (按钮状态、输入框状态等)
         updateUIState();
     }
 

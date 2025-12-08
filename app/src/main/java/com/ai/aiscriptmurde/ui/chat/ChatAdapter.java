@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ai.aiscriptmurde.R;
 import com.ai.aiscriptmurde.db.ChatMessage;
+import com.bumptech.glide.Glide;
 
 import java.util.List;
 
@@ -20,7 +21,11 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private List<ChatMessage> messageList;
 
-    public ChatAdapter( List<ChatMessage> messageList) {
+    public void setMessageList(List<ChatMessage> messageList) {
+        this.messageList = messageList;
+    }
+
+    public ChatAdapter(List<ChatMessage> messageList) {
         this.messageList = messageList;
     }
 
@@ -83,14 +88,24 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     // 类型 1: 用户 (User)
     static class UserViewHolder extends RecyclerView.ViewHolder {
         TextView tvContent;
+        ImageView ivAvatar;
 
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
             tvContent = itemView.findViewById(R.id.tv_content);
+            ivAvatar = itemView.findViewById(R.id.iv_avatar);
         }
 
         void bind(ChatMessage message) {
             tvContent.setText(message.getContent());
+            String assetPath = "file:///android_asset/s" + message.getScriptId()+"_"+message.getRoleId()+".png";
+            Glide.with(itemView)
+                    .load(assetPath)
+                    .placeholder(R.drawable.ic_launcher_background)
+                    .circleCrop()
+                    .into(ivAvatar);
+
+
         }
     }
 
@@ -111,11 +126,14 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             tvContent.setText(message.getContent());
             tvName.setText(message.getSenderName());
 
-            // TODO: 在这里加载头像，推荐使用 Glide 或 Picasso
-            // Glide.with(itemView.getContext()).load(message.getAvatarUrl()).into(ivAvatar);
+            String assetPath = "file:///android_asset/s" + message.getScriptId()+"_"+message.getRoleId()+".png";
+            Glide.with(itemView)
+                    .load(assetPath)
+                    .placeholder(R.drawable.ic_launcher_background)
+                    .circleCrop()
+                    .into(ivAvatar);
 
-            // 默认设置个占位图，防止空白
-            ivAvatar.setImageResource(R.drawable.ic_launcher_background);
+
         }
     }
 

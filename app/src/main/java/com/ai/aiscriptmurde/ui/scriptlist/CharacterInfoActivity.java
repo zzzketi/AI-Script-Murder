@@ -79,7 +79,11 @@ public class CharacterInfoActivity extends AppCompatActivity {
             intent.putExtra("SYSTEM_PROMPT", systemPrompt);
             intent.putExtra("SCRIPT_TITLE", scriptTitle);
             intent.putExtra("BACKGROUND", backgroundStory);
-            intent.putExtra("ALL_CHARACTERS",getIntent().getStringExtra("ALL_CHARACTERS"));
+            // 1. 正确取出 Serializable 对象（不需要强制转型，因为 putExtra 接受 Serializable）
+            Serializable allCharacters = getIntent().getSerializableExtra("ALL_CHARACTERS");
+
+            // 2. 原封不动地传给下一个 Activity
+            intent.putExtra("ALL_CHARACTERS", allCharacters);
 
             // 还可以把用户选的角色传过去（ChatActivity暂时还没处理这个，但建议先传）
             if (selectedCharacter != null) {

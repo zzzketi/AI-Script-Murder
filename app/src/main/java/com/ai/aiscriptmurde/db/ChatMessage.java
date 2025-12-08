@@ -129,4 +129,8 @@ public class ChatMessage implements Serializable {
 
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
+    public String getRoleId() {
+        return roleId;
+    }
 }

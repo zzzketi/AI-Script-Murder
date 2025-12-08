@@ -10,6 +10,8 @@ class Character(BaseModel):
     id: str
     name: str
     desc: str
+    age: int
+    introduction: str
     detail: Optional[str] = ""
     avatar: Optional[str] = None
     public_info: Optional[str] = ""
