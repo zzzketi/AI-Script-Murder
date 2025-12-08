@@ -2,6 +2,7 @@ package com.ai.aiscriptmurde.db;
 
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 import java.io.Serializable;
@@ -17,6 +18,9 @@ public class ChatMessage implements Serializable {
     @PrimaryKey(autoGenerate = true)
     public int id;
 
+    @ColumnInfo(name = "session_id") // 3. 关联的会话ID (关键！)
+    private String sessionId;
+
     @ColumnInfo(name = "script_id")
     public String scriptId;
 
@@ -26,8 +30,13 @@ public class ChatMessage implements Serializable {
     @ColumnInfo(name = "role_id")
     public String roleId;
 
+    @ColumnInfo(name = "content")
     public String content;
 
+    @ColumnInfo(name = "avatar_url")
+    public String avatarUrl;
+
+    @ColumnInfo(name = "type")
     int type;
 
     @ColumnInfo(name = "is_user")
@@ -44,18 +53,46 @@ public class ChatMessage implements Serializable {
 //        this.timestamp = System.currentTimeMillis();
 //        this.type = type;
 //    }
-
-    public ChatMessage(String content, int type){
+    //用户和角色的
+    @Ignore
+    public ChatMessage(String scriptId, String sessionId, String roleId, String senderName,String avatarUrl, String content, int type) {
+        this.scriptId = scriptId;
+        this.sessionId = sessionId;
+        this.roleId = roleId;
+        this.senderName = senderName;
+        this.avatarUrl = avatarUrl;
         this.content = content;
         this.type = type;
         this.timestamp = System.currentTimeMillis();
 
+        // 自动判断 isUser
+        this.isUser = (type == TYPE_USER);
+    }
+
+    //系统的
+    @Ignore
+    public ChatMessage(String scriptId, String sessionId, String content, int type) {
+        this.scriptId = scriptId;
+        this.sessionId = sessionId;
+        this.content = content;
+        this.type = type;
+        this.timestamp = System.currentTimeMillis();
+        // 自动判断 isUser
+        this.isUser = false;
+    }
+
+    public ChatMessage() {
+        this.timestamp = System.currentTimeMillis();
     }
 
     // --- Getters ---
 
     public String getScriptId() {
         return scriptId;
+    }
+
+    public String getSessionId() {
+        return sessionId;
     }
 
     public String getSenderName() {
@@ -78,7 +115,18 @@ public class ChatMessage implements Serializable {
         this.content = s;
     }
 
+    public void setScriptId(String scriptId) {
+        this.scriptId = scriptId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
+
     public void setSenderName(String senderName) {
         this.senderName = senderName;
     }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 }

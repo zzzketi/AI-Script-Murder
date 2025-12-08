@@ -19,6 +19,9 @@ import com.ai.aiscriptmurde.ui.chat.ChatActivity;
 import com.ai.aiscriptmurde.utils.ScriptUtils;
 import com.bumptech.glide.Glide;
 
+import java.io.Serializable;
+import java.util.List;
+
 
 public class CharacterInfoActivity extends AppCompatActivity {
     // 用来暂存剧本的核心数据
@@ -27,6 +30,8 @@ public class CharacterInfoActivity extends AppCompatActivity {
     private String scriptTitle;
     private String backgroundStory;
     private CharacterItem selectedCharacter; // 当前选中的角色
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,6 +79,7 @@ public class CharacterInfoActivity extends AppCompatActivity {
             intent.putExtra("SYSTEM_PROMPT", systemPrompt);
             intent.putExtra("SCRIPT_TITLE", scriptTitle);
             intent.putExtra("BACKGROUND", backgroundStory);
+            intent.putExtra("ALL_CHARACTERS",getIntent().getStringExtra("ALL_CHARACTERS"));
 
             // 还可以把用户选的角色传过去（ChatActivity暂时还没处理这个，但建议先传）
             if (selectedCharacter != null) {

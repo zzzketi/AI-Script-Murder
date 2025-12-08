@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:background="#F5F5F5"
     tools:context=".ui.scriptlist.ScriptListFragment">
@@ -15,8 +16,19 @@
         android:layout_height="56dp"
         android:paddingHorizontal="16dp">
 
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:src="@android:drawable/ic_menu_revert"
+            app:tint="#333333" />
+
         <!-- 标题 -->
         <TextView
+            android:id="@+id/tv_page_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="剧本"
@@ -25,22 +37,30 @@
             android:textStyle="bold"
             android:layout_centerInParent="true" />
 
-
-        <!--        &lt;!&ndash; 右上角的暗色/亮色切换开关 &ndash;&gt;-->
-        <!--        <com.google.android.material.switchmaterial.SwitchMaterial-->
-        <!--            android:id="@+id/switch_theme"-->
-        <!--            android:layout_width="wrap_content"-->
-        <!--            android:layout_height="wrap_content"-->
-        <!--            android:layout_alignParentEnd="true"-->
-        <!--            android:layout_centerVertical="true"-->
-        <!--            android:text="夜间模式"-->
-        <!--            android:textColor="#666666"-->
-        <!--            android:textSize="12sp" />-->
+        <TextView
+            android:id="@+id/btn_latest"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:text="高分榜"
+            android:textSize="12sp"
+            android:textColor="#121112"
+            android:textStyle="bold"
+            android:background="@drawable/bg_btn_latest"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:foreground="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true" />
 
     </RelativeLayout>
 
     <!-- 2. 搜索框区域 -->
     <LinearLayout
+        android:id="@+id/ll_search_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="16dp"

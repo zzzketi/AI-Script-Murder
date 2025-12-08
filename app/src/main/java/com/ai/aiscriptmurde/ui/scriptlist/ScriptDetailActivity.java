@@ -21,6 +21,8 @@ import com.bumptech.glide.Glide; // 引入 Glide
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
+import java.io.Serializable;
 import java.util.List;
 
 
@@ -76,7 +78,8 @@ public class ScriptDetailActivity extends AppCompatActivity {
         tvTitle.setText(detail.getTitle());
         tvSubtitle.setText(detail.getDesc());
 
-        String coverUrl = "http://localhost:8080/static/images/" + detail.getImage() + ".png";
+
+        String coverUrl = RetrofitClient.getImageUrl(detail.getImage());
         Glide.with(this).load(coverUrl).placeholder(R.drawable.ic_launcher_background).into(ivCover);
 
         if (detail.getBackground() != null) {
@@ -126,7 +129,8 @@ public class ScriptDetailActivity extends AppCompatActivity {
 
 
             if (item.getAvatar() != null) {
-                String avatarUrl = "http://localhost:8080/static/images/" + item.getAvatar() + ".png";
+
+                String avatarUrl = RetrofitClient.getImageUrl(item.getAvatar());
                 Glide.with(this)
                         .load(avatarUrl)
                         .placeholder(R.drawable.ic_launcher_background)
@@ -159,6 +163,10 @@ public class ScriptDetailActivity extends AppCompatActivity {
                         // 优先传 Story，如果没有就传 Rules 拼成的字符串
                         intent.putExtra("BACKGROUND", detail.getBackground().getStory());
                     }
+
+                    // 【关键】传递所有角色列表，用于头像查找
+                    //假设 characterList 是 List<CharacterItem>
+                    intent.putExtra("ALL_CHARACTERS", (Serializable)detail.getCharacters());
 
                     // 3. 开始跳转
                     startActivity(intent);

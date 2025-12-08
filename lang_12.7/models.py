@@ -9,10 +9,19 @@ from datetime import datetime
 class Character(BaseModel):
     id: str
     name: str
-    short_desc: str
+    desc: str
     detail: Optional[str] = ""
+    avatar: Optional[str] = None
     public_info: Optional[str] = ""
     secret_info: Optional[str] = ""
+
+
+class BackgroundInfo(BaseModel):
+    time: str
+    location: str
+    story: str
+    rules: List[str]
+
 
 class Author(BaseModel):
     id: str
@@ -20,29 +29,43 @@ class Author(BaseModel):
     avatar: str
     bio: str
 
+
 class Chapter(BaseModel):
     chapter_id: int
     title: str
     narration: str
     discussion_question: str
 
+
 class ScriptBrief(BaseModel):
     id: str
     title: str
-    cover_url: str
-    description: str
+    desc: str
+    image: str
+    score: float
+    difficulty: str
+    tags: List[str]
+
+
+class ScriptListResponse(BaseModel):
+    scripts: List[ScriptBrief]
+
 
 class ScriptDetail(BaseModel):
     id: str
     title: str
-    cover_url: str
-    description: str
-    background: str
-    author: Author
-    characters: List[Character]
+    image: str
+    desc: str
+    score: float
+    difficulty: str
+    tags: List[str]
+    background: Optional[BackgroundInfo] = None
+    author: Optional[Author] = None
+    characters: List[Character] = Field(default_factory=list)
     narratage: Optional[Dict] = None
     chapters: List[Chapter] = Field(default_factory=list)
     truth: Optional[str] = ""
+
 
 # ==========================================
 # 2. 会话与消息模型
@@ -54,6 +77,7 @@ class Message(BaseModel):
     content: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
+
 class ChatSession(BaseModel):
     session_id: str
     script_id: str
@@ -61,6 +85,7 @@ class ChatSession(BaseModel):
     model_name: str
     current_chapter_index: int = 0
     history: List[Message] = Field(default_factory=list)
+
 
 # ==========================================
 # 3. API 请求/响应对象
@@ -71,22 +96,27 @@ class CreateSessionRequest(BaseModel):
     user_role_id: str
     model_name: str = "Qwen/Qwen2.5-72B-Instruct"
 
+
 class CreateSessionResponse(BaseModel):
     session_id: str
     script_id: str
     current_chapter_index: int
 
+
 class SendMessageRequest(BaseModel):
     content: str
+
 
 class SendMessageResponse(BaseModel):
     ai_messages: List[Message]
     full_history: List[Message]
     current_chapter_index: int
 
+
 class NarratageResponse(BaseModel):
     narratage_messages: Optional[str]
     discussion_question_messages: Optional[str]
+
 
 class NextChapterResponse(BaseModel):
     chapter_index: int
@@ -95,10 +125,12 @@ class NextChapterResponse(BaseModel):
     discussion_question: str
     status: str
 
+
 # --- 投票相关 ---
 
 class VoteRequest(BaseModel):
     target_role_id: str
+
 
 class VoteDetail(BaseModel):
     voter_role_id: str
@@ -106,14 +138,19 @@ class VoteDetail(BaseModel):
     target_role_name: str
     reasoning: str
 
+
 class VoteCount(BaseModel):
     role_name: str
     count: int
+
 
 class VoteResultResponse(BaseModel):
     vote_counts: List[VoteCount]
     ai_votes: List[VoteDetail]
     truth: str
+
+class ScriptListResponse(BaseModel):
+    scripts: List[ScriptBrief]
 
 # ==========================================
 # 4. 内存存储
@@ -124,7 +161,7 @@ class InMemorySessionStore:
         self._sessions: Dict[str, ChatSession] = {}
 
     def create_session(
-        self, session_id: str, script_id: str, user_role_id: str, model_name: str
+            self, session_id: str, script_id: str, user_role_id: str, model_name: str
     ) -> ChatSession:
         session = ChatSession(
             session_id=session_id,

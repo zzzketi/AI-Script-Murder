@@ -31,17 +31,35 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 标题 -->
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="迷雾庄园"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#333333" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
 
-            <!-- 描述 -->
+                <TextView
+                    android:id="@+id/tv_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="迷雾庄园"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#333333"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_score"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="9.5分"
+                    android:textColor="#FF9800"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
             <TextView
                 android:id="@+id/tv_desc"
                 android:layout_width="wrap_content"
@@ -52,7 +70,7 @@
                 android:textColor="#666666"
                 android:maxLines="2"
                 android:ellipsize="end"/>
-            <!-- 标签 -->
+
             <TextView
                 android:id="@+id/tv_tags"
                 android:layout_width="wrap_content"

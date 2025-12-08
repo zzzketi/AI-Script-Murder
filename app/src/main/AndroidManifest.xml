@@ -40,6 +40,9 @@
 
         <activity android:name=".ui.scriptlist.ScriptDetailActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+        <activity
+            android:name=".ui.scriptlist.ContainerActivity"
+            android:exported="false" />
 
         <!-- 🔥 修复：移除错误指定的 Light 主题 -->
         <activity android:name=".ui.chat.ChatSearchActivity" />

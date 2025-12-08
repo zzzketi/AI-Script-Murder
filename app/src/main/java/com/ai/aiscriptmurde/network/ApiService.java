@@ -7,6 +7,8 @@ import com.ai.aiscriptmurde.model.ScriptDetailModel;
 import com.ai.aiscriptmurde.model.ScriptListResponse;
 import com.ai.aiscriptmurde.model.ScriptModel;
 import com.ai.aiscriptmurde.model.SessionResponse;
+import com.ai.aiscriptmurde.model.VoteRequest;
+import com.ai.aiscriptmurde.model.VoteResultModel;
 
 import java.util.List;
 
@@ -22,11 +24,17 @@ import retrofit2.http.Streaming;
 public interface ApiService {
     // 获取列表
     @GET("scripts")
-    Call<List<ScriptModel>> getScripts(@Query("keyword") String keyword);
+    Call<ScriptListResponse> getScripts(@Query("keyword") String keyword);
 
     // 获取详情
     @GET("scripts/{id}")
     Call<ScriptDetailModel> getScriptDetail(@Path("id") String id);
+
+    @GET("scripts/score")
+    Call<ScriptListResponse> getScriptsAsScore();
+
+
+
 
     // 对应接口: POST /sessions
     @POST("sessions")
@@ -44,10 +52,20 @@ public interface ApiService {
             @Body MessageRequest request
     );
 
+
     /**
      * 触发下一章
      * 不需要 @Body，因为参数都在 URL 路径里
      */
     @POST("sessions/{session_id}/next_chapter")
     Call<NextChapterResponse> triggerNextChapter(@Path("session_id") String sessionId);
+
+
+    // 假设你的接口是 POST 方法（因为是提交数据），路径根据你后端实际情况写
+
+    @POST("sessions/{session_id}/vote")
+    Call<VoteResultModel> voteAndReveal(
+            @Path("session_id") String sessionId, // 填入 URL 中的 {session_id}
+            @Body VoteRequest body                // 填入 Request Body 中的 JSON 数据
+    );
 }

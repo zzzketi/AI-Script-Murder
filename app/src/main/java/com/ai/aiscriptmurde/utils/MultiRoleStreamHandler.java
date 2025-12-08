@@ -3,6 +3,12 @@ package com.ai.aiscriptmurde.utils;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import okhttp3.ResponseBody;
@@ -21,6 +27,8 @@ public class MultiRoleStreamHandler {
         // 结束
         void onComplete();
         void onError(Throwable t);
+        // 【修改】增加参数，返回完整的原始数据字符串
+        void onComplete(String fullRawContent);
     }
 
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -40,6 +48,7 @@ public class MultiRoleStreamHandler {
                 }
             }
 
+
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
                 mainHandler.post(() -> callback.onError(t));
@@ -47,109 +56,53 @@ public class MultiRoleStreamHandler {
         });
     }
 
+    // 在 MultiRoleStreamHandler 类中
+
     private static void readStream(ResponseBody body, MultiRoleCallback callback) {
+        // 1. 创建流读取器
+        BufferedReader reader = new BufferedReader(new InputStreamReader(body.byteStream()));
+        String line;
+
+        // 2. 【新增】完整数据累加器 (只负责记录，不做任何处理)
+        StringBuilder fullContentRecorder = new StringBuilder();
+
+        // 初始化处理器
+        StreamBufferProcessor processor = new StreamBufferProcessor(callback);
+
         try {
-            java.io.InputStream is = body.byteStream();
-            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is));
 
-            char[] buffer = new char[1024];
-            int len;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("data:")) {
+                    // 截取 data: 后面的内容，保留原始空格
+                    // 有些流数据是 "data:  我"，这里要注意 substring(5) 可能会吃掉一个空格
+                    // 建议安全截取：
+                    String raw = line.length() > 5 ? line.substring(5) : "";
 
-            // 这是一个 "StringBuilder"，用来存还没处理完的文本
-            StringBuilder textBuffer = new StringBuilder();
+                    boolean isBlank = raw.trim().isEmpty();
 
-            while ((len = reader.read(buffer)) != -1) {
-                String chunk = new String(buffer, 0, len);
+                    String content;
+                    if (isBlank && raw.length() > 0) {
+                        content = raw;  // 保留模型输出的空格
+                    } else {
+                        content = raw.trim(); // 去掉前后空格
+                    }
 
-                // 处理 SSE 的 "data:" 前缀 (如果你的流是 SSE 格式，必须先去头)
-                // 这里假设你已经去掉 data: 前缀，或者是非 SSE 的纯文本流
-                // 为了通用性，我这里写一段简易的 SSE 清洗逻辑，如果不需要可以删掉
-                chunk = cleanSSE(chunk);
 
-                textBuffer.append(chunk);
-
-                // --- 核心处理逻辑 ---
-                processBuffer(textBuffer, callback);
-            }
-
-            // 流结束了，把 buffer 里剩下的所有东西都吐出来
-            if (textBuffer.length() > 0) {
-                String remain = textBuffer.toString();
-                mainHandler.post(() -> callback.onAppendContent(remain));
-            }
-            mainHandler.post(callback::onComplete);
-
-        } catch (Exception e) {
-            mainHandler.post(() -> callback.onError(e));
-        }
-    }
-
-    // 扫描 buffer，切分角色
-    private static void processBuffer(StringBuilder buffer, MultiRoleCallback callback) {
-        Matcher matcher = ROLE_PATTERN.matcher(buffer);
-
-        // 循环查找 buffer 里所有的 "【名字】："
-        while (matcher.find()) {
-            int start = matcher.start();
-            int end = matcher.end();
-
-            // 1. 提取标记前面的内容（属于上一个角色）
-            if (start > 0) {
-                String prevContent = buffer.substring(0, start);
-                // 去掉开头的换行符（如果上一个角色说完话，会有个换行）
-                if (prevContent.startsWith("\n")) prevContent = prevContent.substring(1);
-
-                final String finalPrev = prevContent;
-                if (!finalPrev.isEmpty()) {
-                    mainHandler.post(() -> callback.onAppendContent(finalPrev));
+                   processor.appendAndProcess(content);
                 }
             }
 
-            // 2. 提取新角色名字
-            String nameGroup1 = matcher.group(1); // 带括号的
-            String nameGroup2 = matcher.group(2); // 不带括号的
-            String roleName = (nameGroup1 != null) ? nameGroup1 : nameGroup2;
+            // 流结束，强制清空缓冲区剩余内容上屏
+            processor.flushRemaining();
 
-            final String finalRoleName = roleName.trim();
-            mainHandler.post(() -> callback.onSwitchRole(finalRoleName));
+            // 通知 UI 结束
+            new Handler(Looper.getMainLooper()).post(callback::onComplete);
 
-            // 3. 从 buffer 中删除已处理的部分（包括标记本身）
-            buffer.delete(0, end);
-
-            // 重置 matcher，因为 buffer 变了
-            matcher = ROLE_PATTERN.matcher(buffer);
-        }
-
-        // --- 防截断缓冲逻辑 ---
-        // 循环结束后，buffer 里可能还剩一些字。
-        // 如果剩下的字里包含 '[' 或 '【' 或 '\n'，可能是下一个标记的一半，比如 "[路人"
-        // 这种情况下，我们先不显示，等下一波数据来了拼全了再说。
-
-        String remain = buffer.toString();
-        // 简单的判断：如果末尾看起来像标记的开头，保留最后 10 个字符
-        // 否则，除了最后一点点防抖动外，其他的都上屏
-
-        int safeLength = remain.length();
-        // 如果包含潜在的标记头，我们在那个头之前截断
-        int potentialTagIndex = Math.max(remain.lastIndexOf('\n'), Math.max(remain.lastIndexOf('【'), remain.lastIndexOf('[')));
-
-        if (potentialTagIndex != -1 && (remain.length() - potentialTagIndex) < 10) {
-            // 看起来像是有个标签没传完，只上屏标签前面的
-            safeLength = potentialTagIndex;
-        }
-
-        if (safeLength > 0) {
-            String safeContent = remain.substring(0, safeLength);
-            buffer.delete(0, safeLength); // 从 buffer 移除
-            mainHandler.post(() -> callback.onAppendContent(safeContent));
+        } catch (IOException e) {
+            new Handler(Looper.getMainLooper()).post(() -> callback.onError(e));
+        } finally {
+            try { body.close(); } catch (Exception ignored) {}
         }
     }
 
-    // 简单的 SSE 清洗 (根据你的实际流格式调整)
-    private static String cleanSSE(String raw) {
-        // 如果你的后端返回的是纯文本，直接 return raw;
-        // 如果是 data: xxx，在这里 replace
-        return raw.replace("data:", "").replace("event:role_info", "");
-        // 注意：这里只是简单示例，最好用之前的 lineBuffer 按行解析法
-    }
 }

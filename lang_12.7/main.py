@@ -12,14 +12,14 @@ from models import (
     ScriptBrief, ScriptDetail, ChatSession, InMemorySessionStore, Message,
     VoteDetail, VoteRequest, VoteResultResponse, VoteCount,
     CreateSessionRequest, CreateSessionResponse, SendMessageRequest, SendMessageResponse,
-    NarratageResponse, NextChapterResponse
+    NextChapterResponse,ScriptListResponse
 )
-from graph import build_graph, GraphState, build_llm, build_role_system_prompt, get_all_ai_roles, \
-    generate_character_vote, debug_print_prompt
+from graph import build_graph, GraphState, build_llm, build_group_system_prompt, \
+    generate_character_vote, debug_print_prompt, parse_group_output, get_all_ai_roles
 
 load_dotenv()
 
-app = FastAPI(title="剧本杀AI后端-SiliconFlow完整版", version="3.5.0")
+app = FastAPI(title="剧本杀AI后端-12.7", version="4.0.1")
 session_store = InMemorySessionStore()
 graph = build_graph()
 
@@ -28,16 +28,24 @@ graph = build_graph()
 # 1. 剧本与会话管理
 # ==========================================
 
-@app.get("/scripts", response_model=List[ScriptBrief])
+@app.get("/scripts", response_model=ScriptListResponse)
 def list_scripts(keyword: Optional[str] = None):
     results = []
     for s in SCRIPTS:
         if keyword:
             kw = keyword.lower()
-            if kw not in s["title"].lower() and kw not in s["description"].lower():
+            if kw not in s["title"].lower() and kw not in s["desc"].lower():
                 continue
         results.append(ScriptBrief(**s))
-    return results
+    return ScriptListResponse(scripts=results)
+
+
+@app.get("/scripts/score", response_model=ScriptListResponse)
+def list_scripts_by_score():
+    results = [ScriptBrief(**s) for s in SCRIPTS]
+    sorted_data = sorted(results, key=lambda x: x.score, reverse=True)
+
+    return ScriptListResponse(scripts=sorted_data)
 
 
 @app.get("/scripts/{script_id}", response_model=ScriptDetail)
@@ -96,10 +104,14 @@ def clear_session(session_id: str):
 
 @app.post("/sessions/{session_id}/message", response_model=SendMessageResponse)
 async def send_message(session_id: str, req: SendMessageRequest):
+    """
+    普通对话接口：调用 Graph，Graph内部现在是 One Call 逻辑
+    """
     session = session_store.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # 注意：LangGraph 的逻辑已经在 graph.py 中改为单次调用
     state = GraphState(session=session, user_message=req.content)
     result_state = await graph.ainvoke(state)
 
@@ -118,7 +130,8 @@ async def send_message(session_id: str, req: SendMessageRequest):
 async def send_message_stream(session_id: str, req: SendMessageRequest):
     """
     流式接口实现：
-    循环遍历所有 AI 角色，为每个角色分配独立的大模型上下文进行调用。
+    已修改为【一次调用流式返回】。
+    大模型会一次性输出形如 "【角色A】: ...\n【角色B】: ..." 的内容。
     """
     session = session_store.get_session(session_id)
     if not session:
@@ -127,88 +140,59 @@ async def send_message_stream(session_id: str, req: SendMessageRequest):
     script = SCRIPT_INDEX[session.script_id]
     user_role_name = next((c["name"] for c in script["characters"] if c["id"] == session.user_role_id), "Player")
     user_input_fmt = f"【{user_role_name}】： {req.content}"
+
+    # 将用户消息加入历史
     session.history.append(Message(role="user", speaker="player", content=user_input_fmt))
     session_store.update_session(session)
 
-    ai_roles = get_all_ai_roles(script, session.user_role_id)
-
     async def event_generator():
-        if not ai_roles:
-            yield "data: [No AI roles]\n\n"
-            return
-
         from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-        for i, role_id in enumerate(ai_roles):
-            role_info = next((c for c in script["characters"] if c["id"] == role_id), {})
-            role_name = role_info.get('name', 'AI')
+        # 1. 构建群聊 Prompt
+        system_prompt = build_group_system_prompt(script, session.user_role_id, session)
 
-            # 角色间隔，避免高并发
-            if i > 0:
-                await asyncio.sleep(1.5)
-            else:
-                await asyncio.sleep(0.5)
+        messages = [SystemMessage(content=system_prompt)]
+        for msg in session.history:
+            if msg.role == "user":
+                messages.append(HumanMessage(content=msg.content))
+            elif msg.role == "ai":
+                prefix = f"【{msg.speaker}】：" if msg.speaker else ""
+                messages.append(AIMessage(content=f"{prefix}{msg.content}"))
+            elif msg.role == "system":
+                messages.append(SystemMessage(content=f"【剧情旁白】: {msg.content}"))
 
-            # 【重要】为当前角色构建专属的 System Prompt
-            system_prompt = build_role_system_prompt(
-                script, role_id, role_info, session
-            )
+        debug_print_prompt("GROUP-STREAM", messages)
 
-            messages = [SystemMessage(content=system_prompt)]
-            for msg in session.history:
-                if msg.role == "user":
-                    messages.append(HumanMessage(content=msg.content))
-                elif msg.role == "ai":
-                    messages.append(AIMessage(content=msg.content))
-                elif msg.role == "system":
-                    messages.append(SystemMessage(content=f"【剧情旁白】: {msg.content}"))
+        # 2. 调用 LLM
+        llm = build_llm(session.model_name)
+        full_content = ""
 
-            # 打印当前角色的完整Prompt (无截断)
-            debug_print_prompt(f"{role_name}-STREAM", messages)
-            yield f"event: role_info\ndata: {role_name}\n\n"
+        # 发送开始事件
+        yield "event: start\ndata: [START]\n\n"
 
-            # 重新实例化LLM，确保全新的调用上下文
-            llm = build_llm(session.model_name)
-            full_content = ""
+        try:
+            async for chunk in llm.astream(messages):
+                delta = chunk.content
+                if delta:
+                    full_content += delta
+                    # 直接透传大模型生成的文本（包含【角色名】：前缀）
+                    # 前端需要根据换行符和【】解析显示
+                    yield f"data: {delta}\n\n"
+        except Exception as e:
+            print(f"[Stream Error] {e}")
+            yield f"data: (Error: {str(e)})\n\n"
 
-            try:
-                retry_count = 0
-                max_retries = 3
-                success = False
+        # 【新增】打印流式完整回复，保持与非流式一致的控制台体验
+        print(f"\n{'='*20} 流式响应完整内容 {'='*20}")
+        print(full_content)
+        print(f"{'='*60}\n")
 
-                while retry_count < max_retries and not success:
-                    if retry_count > 0:
-                        await asyncio.sleep(2)
-                        yield f"data: ...\n\n"
-
-                    temp_content = ""
-                    async for chunk in llm.astream(messages):
-                        delta = chunk.content
-                        if delta:
-                            temp_content += delta
-                            yield f"data: {delta}\n\n"
-
-                    if len(temp_content.strip()) > 0:
-                        full_content = temp_content
-                        success = True
-                    else:
-                        print(f"[Stream Warning] {role_name} 返回空，重试 {retry_count + 1}")
-                        retry_count += 1
-
-                if not success:
-                    fallback_text = "..."
-                    yield f"data: {fallback_text}\n\n"
-                    full_content = fallback_text
-
-                ai_msg = Message(role="ai", speaker=role_name, content=full_content)
-                session.history.append(ai_msg)
-                session_store.update_session(session)
-
-                yield f"event: end_role\ndata: {role_name}\n\n"
-
-            except Exception as e:
-                print(f"[Stream Error] {e}")
-                yield f"data: (Error: {str(e)})\n\n"
+        # 3. 后处理：解析完整文本并存入历史记录
+        # 我们需要在后台解析出是哪些角色说了话，以便下次构建 Prompt 历史时使用
+        new_msgs = parse_group_output(full_content)
+        for msg in new_msgs:
+            session.history.append(msg)
+        session_store.update_session(session)
 
         yield "event: done\ndata: [DONE]\n\n"
 
@@ -241,12 +225,13 @@ def trigger_next_chapter(session_id: str):
     chapter_data = chapters[next_idx - 1]
     session.current_chapter_index = next_idx
 
-    print(f"[Chapter] 开启第 {next_idx} 章: {chapter_data['title']}")
-    # 打印完整剧情和问题
+    # 【新增】美观打印剧情和问题到控制台
+    print(f"\n{'='*20} 开启新章节: 第 {next_idx} 章 {'='*20}")
+    print(f"【标题】: {chapter_data['title']}")
     print(f"【剧情】: {chapter_data['narration']}")
     print(f"【问题】: {chapter_data['discussion_question']}")
+    print(f"{'='*60}\n")
 
-    # 旁白与问题之间不空行
     narrator_text = (
         f"【第{chapter_data['chapter_id']}章：{chapter_data['title']}】\n"
         f"{chapter_data['narration']}\n"
@@ -279,8 +264,9 @@ async def vote_and_reveal(session_id: str, req: VoteRequest):
     if not target_char:
         raise HTTPException(status_code=400, detail="投票失败：目标角色不存在")
 
+    # 使用 graph.py 中重新加回的函数，确保代码简洁统一
     ai_roles = get_all_ai_roles(script, session.user_role_id)
-    # 并发投票，generate_character_vote 内部有独立的 LLM 调用和 Prompt
+
     tasks = [generate_character_vote(session, rid) for rid in ai_roles]
     ai_votes_details = await asyncio.gather(*tasks)
 
@@ -290,11 +276,27 @@ async def vote_and_reveal(session_id: str, req: VoteRequest):
     tally[user_target_name] += 1
 
     for vote in ai_votes_details:
+        # 清理可能产生的标点
         name = vote.target_role_name.strip().replace("。", "").replace("【", "").replace("】", "")
         tally[name] += 1
 
     vote_counts = [VoteCount(role_name=k, count=v) for k, v in tally.items()]
     vote_counts.sort(key=lambda x: x.count, reverse=True)
+
+    # 【新增】投票结果美观打印
+    print(f"\n{'='*25} 投票结果公示 {'='*25}")
+    print(f"真凶揭秘: 【{script.get('truth', '未知')}】")
+    print("-" * 60)
+    print("【得票统计】")
+    for vc in vote_counts:
+        print(f"  * {vc.role_name}: {vc.count} 票")
+    print("-" * 60)
+    print("【详细投票理由】")
+    print(f"  [玩家] 投给了 -> {user_target_name}")
+    for v in ai_votes_details:
+        print(f"  [{v.voter_name}] 投给了 -> {v.target_role_name}")
+        print(f"      └── 理由: {v.reasoning}")
+    print(f"{'='*60}\n")
 
     return VoteResultResponse(
         vote_counts=vote_counts,
@@ -306,4 +308,4 @@ async def vote_and_reveal(session_id: str, req: VoteRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8129)
+    uvicorn.run(app, host="0.0.0.0", port=9668)
